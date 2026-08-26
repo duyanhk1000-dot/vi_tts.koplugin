@@ -33,6 +33,11 @@ function Daemon:checkBinary(cmd)
     return res == 0
 end
 
+function Daemon:isPlaying()
+    local res = os.execute("pidof gst-launch-0.10 >/dev/null 2>&1 || pidof mpg123 >/dev/null 2>&1 || pidof mplayer >/dev/null 2>&1 || pidof aplay >/dev/null 2>&1")
+    return res == 0
+end
+
 function Daemon:startProcess()
     if self.player_type == "mpg123" then
         local cmd = string.format("%s -R -q 2>&1", self.binary_path)

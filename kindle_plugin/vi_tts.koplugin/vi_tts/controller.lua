@@ -76,14 +76,31 @@ function Controller:loadAndPlayCurrentPage()
 
         if ok then
             self.state = "PLAYING"
-            self:showInfo("🔊 Đang phát ra loa/tai nghe (Trang " .. tostring(self.current_page) .. ")...")
+            self:showInfo("🔊 Đang đọc trang " .. tostring(self.current_page) .. "...")
             Logger:log("PLAYING", "Loading audio into daemon...")
             Daemon:loadAudio(curr_file)
             self:prefetchNextPage()
+            self:schedulePlaybackCheck()
         else
             self.state = "IDLE"
             Logger:log("PLAY_ERROR", "Net error: " .. tostring(res))
             self:showInfo("⚠️ Không thể tải âm thanh:\n" .. tostring(res) .. "\n(Kiểm tra lại Wi-Fi hoặc URL Proxy)")
+        end
+    end)
+end
+
+function Controller:schedulePlaybackCheck()
+    if self.state ~= "PLAYING" then return end
+    
+    UIManager:scheduleIn(1.0, function()
+        if self.state ~= "PLAYING" then return end
+        
+        if Daemon:isPlaying() then
+            -- Still playing current track, keep watching
+            self:schedulePlaybackCheck()
+        else
+            Logger:log("PLAYBACK_CHECK", "Audio finished for page " .. tostring(self.current_page) .. "! Auto turning page...")
+            self:onTrackFinished()
         end
     end)
 end
@@ -137,19 +154,41 @@ function Controller:onTrackFinished()
     local curr_file = Daemon:getFilePath("chunk_curr")
     local next_file = Daemon:getFilePath("chunk_next")
     
-    os.remove(curr_file)
-    os.rename(next_file, curr_file)
-
-    if self.ui and self.ui.handleEvent then
-        local Event = require("ui/event")
-        self.ui:handleEvent(Event:new("GotoPage", next_page))
+    local has_prefetch = false
+    local f = io.open(next_file, "rb")
+    if f then
+        local size = f:seek("end")
+        f:close()
+        if size > 1000 then
+            has_prefetch = true
+        end
     end
 
-    Daemon:loadAudio(curr_file)
-    self.page_transition_lock = false
-    self.state = "PLAYING"
+    -- Turn page automatically on KOReader
+    if self.ui and self.ui.handleEvent then
+        pcall(function()
+            local Event = require("ui/event")
+            self.ui:handleEvent(Event:new("GotoPage", next_page))
+        end)
+    end
 
-    self:prefetchNextPage()
+    if has_prefetch then
+        Logger:log("TRACK_FINISHED", "Using prefetched chunk_next for page " .. tostring(next_page))
+        os.remove(curr_file)
+        os.rename(next_file, curr_file)
+        
+        self.state = "PLAYING"
+        self:showInfo("🔊 Tự động chuyển trang " .. tostring(self.current_page) .. "...")
+        Daemon:loadAudio(curr_file)
+        self.page_transition_lock = false
+        
+        self:prefetchNextPage()
+        self:schedulePlaybackCheck()
+    else
+        Logger:log("TRACK_FINISHED", "Prefetch not ready, loading page " .. tostring(next_page) .. " fresh")
+        self.page_transition_lock = false
+        self:loadAndPlayCurrentPage()
+    end
 end
 
 function Controller:onUserManualPageTurn()
@@ -170,6 +209,7 @@ function Controller:pauseSession()
         Daemon:pauseAudio()
         self.state = "PLAYING"
         self:showInfo("▶️ Tiếp tục đọc trang " .. tostring(self.current_page))
+        self:schedulePlaybackCheck()
     end
 end
 
@@ -196,7 +236,7 @@ function Controller:showInfo(msg)
             local InfoMessage = require("ui/widget/infomessage")
             UIManager:show(InfoMessage:new{
                 text = msg,
-                timeout = 2.5,
+                timeout = 2.0,
             })
         end)
     end
