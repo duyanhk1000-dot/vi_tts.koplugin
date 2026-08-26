@@ -34,8 +34,8 @@ function NetTTS:requestPageAudio(text, target_path, session_token, expected_toke
         escaped_text, self.voice, self.rate, self.pitch
     )
 
-    local file_handle = io.open(target_path, "w+b")
-    if not file_handle then
+    local out_file = io.open(target_path, "w+b")
+    if not out_file then
         Logger:log("NET_ERROR", "Cannot open target file for writing: " .. tostring(target_path))
         return false, "Không thể tạo file đệm trên Kindle"
     end
@@ -54,11 +54,11 @@ function NetTTS:requestPageAudio(text, target_path, session_token, expected_toke
         headers = {
             ["Content-Type"] = "application/json",
             ["Content-Length"] = tostring(#json_body),
-            ["User-Agent"] = "KOReader-vi_tts/3.2.6",
+            ["User-Agent"] = "KOReader-vi_tts/3.2.7",
             ["X-Request-ID"] = session_token or "req_" .. tostring(os.time()),
         },
         source = ltn12.source.string(json_body),
-        sink = ltn12.sink.file(file_handle)
+        sink = ltn12.sink.file(out_file)
     }
 
     local ok, status_code, resp_headers, status_line = pcall(req_fn, req_tab)
@@ -67,7 +67,8 @@ function NetTTS:requestPageAudio(text, target_path, session_token, expected_toke
         pcall(function() socketutil:reset_timeout() end)
     end
 
-    file_handle:close()
+    -- Safely attempt close in case ltn12 didn't close it
+    pcall(function() out_file:close() end)
 
     local code = tonumber(status_code) or 0
     Logger:log("NET_RESULT", "Pcall ok: " .. tostring(ok) .. ", Code: " .. tostring(code) .. ", Line: " .. tostring(status_line))

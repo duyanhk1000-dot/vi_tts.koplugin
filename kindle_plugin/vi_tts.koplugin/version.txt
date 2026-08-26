@@ -1,4 +1,4 @@
-VERSION=3.2.6
-BUILD_DATE=2026-08-26 14:22:30
-COMMIT_MSG=Fixed HTTPS request failure using ssl.https (luasec) module and output debug_log.txt directly to plugin directory for easy USB access
+VERSION=3.2.7
+BUILD_DATE=2026-08-26 14:26:00
+COMMIT_MSG=Fixed ltn12 sink file double close crash (attempt to use a closed file at net_tts.lua:70) using pcall file handle safety wrapper
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page
