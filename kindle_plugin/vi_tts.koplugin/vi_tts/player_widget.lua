@@ -39,12 +39,15 @@ function PlayerWidget:show(controller)
         buttons = buttons,
     }
 
-    -- Shift dialog position to bottom of the screen
-    pcall(function()
-        self.dialog:onMovePosition(false)
-    end)
-
+    -- Show widget first to calculate dimensions
     UIManager:show(self.dialog)
+
+    -- Move widget to bottom of screen AFTER showing
+    pcall(function()
+        if self.dialog and self.dialog.onMovePosition then
+            self.dialog:onMovePosition(false)
+        end
+    end)
 end
 
 function PlayerWidget:close()
