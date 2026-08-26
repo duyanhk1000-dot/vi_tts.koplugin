@@ -1,4 +1,4 @@
-VERSION=3.2.3
-BUILD_DATE=2026-08-26 14:06:30
-COMMIT_MSG=Added step-by-step debug logging to /tmp/vi_tts_debug.log and KOReader crash.log logger integration
+VERSION=3.2.4
+BUILD_DATE=2026-08-26 14:09:30
+COMMIT_MSG=Fixed EPUB CreDocument crash (attempt to call openPage a nil value) using getTextFromPositions screen extraction and pcall safety wrappers
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page
