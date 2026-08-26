@@ -1,4 +1,4 @@
-VERSION=3.5.0
-BUILD_DATE=2026-08-26 17:49:10
-COMMIT_MSG=Added 4-button compact popup with speed - and + buttons placed above Play/Pause and X buttons, with dynamic SSML rate speed adjustment (v3.5.0)
+VERSION=3.5.1
+BUILD_DATE=2026-08-26 17:54:15
+COMMIT_MSG=Updated Cloudflare Worker with Edge-TTS SSML Prosody Rate speed control & ultra-compacted 4-button player widget (v3.5.1)
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page

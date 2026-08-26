@@ -15,13 +15,13 @@ function PlayerWidget:show(controller)
     end
 
     local is_playing = (controller.state == "PLAYING" or controller.state == "LOADING" or controller.state == "STARTING")
-    local toggle_icon = is_playing and " ⏸ " or " ▶ "
+    local toggle_icon = is_playing and "⏸" or "▶"
 
     local buttons = {
         {
             {
-                text = " ➖ ",
-                font_size = 24,
+                text = "➖",
+                font_size = 18,
                 font_bold = true,
                 callback = function()
                     controller:changeSpeed(-15)
@@ -29,8 +29,8 @@ function PlayerWidget:show(controller)
                 end,
             },
             {
-                text = " ➕ ",
-                font_size = 24,
+                text = "➕",
+                font_size = 18,
                 font_bold = true,
                 callback = function()
                     controller:changeSpeed(15)
@@ -41,7 +41,7 @@ function PlayerWidget:show(controller)
         {
             {
                 text = toggle_icon,
-                font_size = 30,
+                font_size = 22,
                 font_bold = true,
                 callback = function()
                     controller:pauseSession()
@@ -51,8 +51,8 @@ function PlayerWidget:show(controller)
                 end,
             },
             {
-                text = " ✖ ",
-                font_size = 22,
+                text = "✖",
+                font_size = 18,
                 id = "close",
                 callback = function()
                     controller:stopSession()
@@ -62,17 +62,17 @@ function PlayerWidget:show(controller)
         },
     }
 
-    local widget_width = math.floor(Screen:getWidth() * 0.28)
-    local widget_height = 95
+    local widget_width = math.floor(Screen:getWidth() * 0.20)
+    local widget_height = 70
 
     self.dialog = ButtonDialog:new{
         title = nil,
-        width_factor = 0.28,
+        width_factor = 0.20,
         buttons = buttons,
         anchor = function()
             return Geom:new{
-                x = Screen:getWidth() - widget_width - 10,
-                y = Screen:getHeight() - widget_height - 10,
+                x = Screen:getWidth() - widget_width - 6,
+                y = Screen:getHeight() - widget_height - 6,
                 w = widget_width,
                 h = widget_height,
             }
