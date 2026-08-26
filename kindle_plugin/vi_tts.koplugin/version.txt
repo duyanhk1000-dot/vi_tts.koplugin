@@ -1,4 +1,4 @@
-VERSION=3.2.5
-BUILD_DATE=2026-08-26 14:16:30
-COMMIT_MSG=Added live InfoMessage status windows for every step (extract, cloudflare request, download bytes, audio play) and ALSA volume control dialog
+VERSION=3.2.6
+BUILD_DATE=2026-08-26 14:22:30
+COMMIT_MSG=Fixed HTTPS request failure using ssl.https (luasec) module and output debug_log.txt directly to plugin directory for easy USB access
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page
