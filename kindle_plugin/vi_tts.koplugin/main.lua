@@ -42,6 +42,16 @@ function ViTTS:getMenuTable()
             end,
         },
         {
+            text = "🔊 Điều chỉnh Âm lượng (Volume)",
+            sub_item_table = {
+                { text = "🔊 100% (Lớn nhất)", callback = function() Controller:setVolume(100) end },
+                { text = "🔉 80%", callback = function() Controller:setVolume(80) end },
+                { text = "🔉 60%", callback = function() Controller:setVolume(60) end },
+                { text = "🔈 40%", callback = function() Controller:setVolume(40) end },
+                { text = "🔈 20% (Nhỏ nhất)", callback = function() Controller:setVolume(20) end },
+            },
+        },
+        {
             text = "⚙️ Cấu hình Server Proxy",
             callback = function()
                 local InputDialog = require("ui/widget/inputdialog")

@@ -1,4 +1,4 @@
-VERSION=3.2.4
-BUILD_DATE=2026-08-26 14:09:30
-COMMIT_MSG=Fixed EPUB CreDocument crash (attempt to call openPage a nil value) using getTextFromPositions screen extraction and pcall safety wrappers
+VERSION=3.2.5
+BUILD_DATE=2026-08-26 14:16:30
+COMMIT_MSG=Added live InfoMessage status windows for every step (extract, cloudflare request, download bytes, audio play) and ALSA volume control dialog
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page

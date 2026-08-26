@@ -36,6 +36,8 @@ function Controller:startSession()
     end
     
     self.state = "STARTING"
+    self:showInfo("📖 Bắt đầu phiên đọc TTS (Trang " .. tostring(self.current_page) .. ")...")
+
     local init_ok = Daemon:init(self.session_id)
     Logger:log("DAEMON_INIT", "Daemon init result: " .. tostring(init_ok) .. ", player: " .. tostring(Daemon.player_type))
     
@@ -45,38 +47,43 @@ end
 function Controller:loadAndPlayCurrentPage()
     self.state = "LOADING"
     Logger:log("LOAD_PAGE", "Loading page " .. tostring(self.current_page))
-    self:showToast("Đang tải âm thanh trang " .. tostring(self.current_page) .. "...")
+    self:showInfo("🔍 Đang trích xuất chữ trang " .. tostring(self.current_page) .. "...")
     
     UIManager:scheduleIn(0.1, function()
-        Logger:log("LOAD_PAGE_ASYNC", "Extracting text for page " .. tostring(self.current_page))
         local text = Extractor:getPageText(self.ui, self.current_page)
         
         if not text then
             Logger:log("LOAD_PAGE_ERROR", "No text found for page " .. tostring(self.current_page))
-            self:showToast("Không tìm thấy văn bản trang " .. tostring(self.current_page))
+            self:showInfo("❌ Trang " .. tostring(self.current_page) .. " không có chữ để đọc!")
             self:stopSession()
             return
         end
 
         Logger:log("LOAD_PAGE_TEXT", "Text extracted, length: " .. tostring(#text))
+        self:showInfo("🌐 Đang gửi " .. tostring(#text) .. " ký tự lên Cloudflare Edge-TTS...")
+
         local curr_file = Daemon:getFilePath("chunk_curr")
-        Logger:log("LOAD_PAGE_NET", "Requesting audio to: " .. tostring(curr_file))
         
-        local ok, res = NetTTS:requestPageAudio(text, curr_file, self.session_token, function(token)
-            return token == self.session_token
-        end)
+        local ok, res = NetTTS:requestPageAudio(
+            text, 
+            curr_file, 
+            self.session_token, 
+            function(token) return token == self.session_token end,
+            function(status_text) self:showInfo(status_text) end
+        )
 
         Logger:log("LOAD_PAGE_NET_RES", "Net request result: " .. tostring(ok) .. ", msg: " .. tostring(res))
 
         if ok then
             self.state = "PLAYING"
+            self:showInfo("🔊 Đang phát ra loa/tai nghe (Trang " .. tostring(self.current_page) .. ")...")
             Logger:log("PLAYING", "Loading audio into daemon...")
             Daemon:loadAudio(curr_file)
             self:prefetchNextPage()
         else
             self.state = "IDLE"
             Logger:log("PLAY_ERROR", "Net error: " .. tostring(res))
-            self:showToast("Lỗi tải âm thanh: " .. tostring(res))
+            self:showInfo("⚠️ Không thể tải âm thanh:\n" .. tostring(res) .. "\n(Kiểm tra lại Wi-Fi hoặc URL Proxy)")
         end
     end)
 end
@@ -90,7 +97,6 @@ function Controller:prefetchNextPage()
         total_pages = self.ui.document:getPageCount()
     end
     
-    Logger:log("PREFETCH", "Next page: " .. tostring(next_page) .. " / " .. tostring(total_pages))
     if next_page > total_pages then return end
 
     local text = Extractor:getPageText(self.ui, next_page)
@@ -120,7 +126,7 @@ function Controller:onTrackFinished()
 
     if next_page > total_pages then
         Logger:log("BOOK_END", "Reached end of book")
-        self:showToast("Đã đọc hết cuốn sách!")
+        self:showInfo("🎉 Đã đọc xong cuốn sách!")
         self:stopSession()
         return
     end
@@ -149,7 +155,7 @@ end
 function Controller:onUserManualPageTurn()
     Logger:log("MANUAL_PAGE_TURN", "User manually turned page")
     if self.state ~= "IDLE" then
-        self:showToast("Dừng đọc TTS do lật trang thủ công")
+        self:showInfo("⏹️ Dừng đọc TTS do lật trang thủ công")
         self:stopSession()
     end
 end
@@ -159,19 +165,12 @@ function Controller:pauseSession()
     if self.state == "PLAYING" or self.state == "PREFETCHING" then
         Daemon:pauseAudio()
         self.state = "PAUSED"
-        self:showToast("Tạm dừng đọc")
+        self:showInfo("⏸️ Tạm dừng đọc")
     elseif self.state == "PAUSED" then
         Daemon:pauseAudio()
         self.state = "PLAYING"
-        self:showToast("Tiếp tục đọc")
+        self:showInfo("▶️ Tiếp tục đọc trang " .. tostring(self.current_page))
     end
-end
-
-function Controller:safePause()
-    Logger:log("SAFE_PAUSE", "Safe pause triggered")
-    Daemon:stopAudio()
-    self.state = "IDLE"
-    self:showToast("Tạm dừng an toàn (Safe Pause)")
 end
 
 function Controller:stopSession()
@@ -182,14 +181,23 @@ function Controller:stopSession()
     Daemon:cleanSessionDir()
     self.session_token = nil
     self.state = "IDLE"
-    self:showToast("Đã dừng đọc TTS")
+    self:showInfo("⏹️ Đã dừng hẳn đọc TTS")
 end
 
-function Controller:showToast(msg)
-    if self.ui and self.ui.handleEvent then
+function Controller:setVolume(volume_percent)
+    local cmd = string.format("amixer set Master %d%% 2>/dev/null; amixer set PCM %d%% 2>/dev/null", volume_percent, volume_percent)
+    os.execute(cmd)
+    self:showInfo("🔊 Đã chỉnh âm lượng: " .. tostring(volume_percent) .. "%")
+end
+
+function Controller:showInfo(msg)
+    if self.ui then
         pcall(function()
-            local Event = require("ui/event")
-            self.ui:handleEvent(Event:new("Notification", msg))
+            local InfoMessage = require("ui/widget/infomessage")
+            UIManager:show(InfoMessage:new{
+                text = msg,
+                timeout = 2.5,
+            })
         end)
     end
 end
