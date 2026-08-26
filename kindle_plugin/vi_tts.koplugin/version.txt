@@ -1,4 +1,4 @@
-VERSION=3.2.8
-BUILD_DATE=2026-08-26 14:29:30
-COMMIT_MSG=Fixed LuaSocket https.request table mode multi-return argument mapping (result_flag vs real_http_code 200)
+VERSION=3.2.9
+BUILD_DATE=2026-08-26 14:32:45
+COMMIT_MSG=Updated Cloudflare Worker worker.js to use native fetch() with Microsoft Edge-TTS REST API replacing WebSocket for 100% Cloudflare Workers compatibility
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page

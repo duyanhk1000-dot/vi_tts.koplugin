@@ -1,13 +1,13 @@
 /**
  * Cloudflare Worker for Vietnamese Text-To-Speech (vi_tts) Proxy
  * - Pure JavaScript / Web API runtime (Zero dependencies, Zero cold start)
- * - Connects to Microsoft Edge-TTS via WebSocket
+ * - Natively calls Microsoft Edge-TTS Neural Speech API via fetch()
  * - Cleans Vietnamese abbreviations (TP.HCM, SĐT, Dr...)
  * - Concatenates raw MP3 byte buffers dynamically
  */
 
 const TRUSTED_TOKEN = "6A5AA1D4EA5E40799C57C69F6B56D665";
-const EDGE_WS_URL = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_TOKEN}`;
+const EDGE_REST_URL = `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/single/v1?TrustedClientToken=${TRUSTED_TOKEN}`;
 
 // Abbreviation replacement dictionary
 const ABBREVIATIONS = [
@@ -45,78 +45,25 @@ function splitSentences(text) {
 }
 
 async function synthesizeSentenceEdgeTTS(sentence, voice = "vi-VN-HoaiMyNeural", rate = "+0%", pitch = "+0Hz") {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(EDGE_WS_URL);
-    const chunks = [];
-    const requestId = crypto.randomUUID().replace(/-/g, "");
+  const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='vi-VN'><voice name='${voice}'><prosody rate='${rate}' pitch='${pitch}'>${sentence}</prosody></voice></speak>`;
+  const requestId = crypto.randomUUID().replace(/-/g, "");
 
-    const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='vi-VN'><voice name='${voice}'><prosody rate='${rate}' pitch='${pitch}'>${sentence}</prosody></voice></speak>`;
-
-    const timestamp = new Date().toISOString();
-    const configHeader = `Path: speech.config\r\nContent-Type: application/json; charset=utf-8\r\nPath: speech.config\r\n\r\n{"context":{"synthesis":{"client":{"name":"zstrace","version":"1.0.0"}}}}\r\n`;
-    const requestHeader = `X-RequestId:${requestId}\r\nContent-Type: application/ssml+xml\r\nPath: ssml\r\n\r\n${ssml}`;
-
-    ws.addEventListener("open", () => {
-      ws.send(configHeader);
-      ws.send(requestHeader);
-    });
-
-    ws.addEventListener("message", (event) => {
-      if (typeof event.data === "string") {
-        if (event.data.includes("Path:turn.end")) {
-          ws.close();
-          const totalLength = chunks.reduce((acc, c) => acc + c.byteLength, 0);
-          const combined = new Uint8Array(totalLength);
-          let offset = 0;
-          for (const c of chunks) {
-            combined.set(new Uint8Array(c), offset);
-            offset += c.byteLength;
-          }
-          resolve(combined);
-        }
-      } else if (event.data instanceof ArrayBuffer) {
-        // Binary audio packet
-        const data = new Uint8Array(event.data);
-        const headerEnd = findHeaderEnd(data);
-        if (headerEnd !== -1) {
-          const audioBytes = data.slice(headerEnd);
-          if (audioBytes.byteLength > 0) {
-            chunks.push(audioBytes.buffer);
-          }
-        }
-      }
-    });
-
-    ws.addEventListener("error", (err) => {
-      ws.close();
-      reject(err);
-    });
-
-    setTimeout(() => {
-      ws.close();
-      if (chunks.length > 0) {
-        const totalLength = chunks.reduce((acc, c) => acc + c.byteLength, 0);
-        const combined = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const c of chunks) {
-          combined.set(new Uint8Array(c), offset);
-          offset += c.byteLength;
-        }
-        resolve(combined);
-      } else {
-        reject(new Error("Timeout synthesizing audio"));
-      }
-    }, 8000);
+  const response = await fetch(EDGE_REST_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/ssml+xml",
+      "X-RequestId": requestId,
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0"
+    },
+    body: ssml
   });
-}
 
-function findHeaderEnd(data) {
-  for (let i = 0; i < data.length - 3; i++) {
-    if (data[i] === 13 && data[i + 1] === 10 && data[i + 2] === 13 && data[i + 3] === 10) {
-      return i + 4;
-    }
+  if (!response.ok) {
+    throw new Error(`Edge-TTS REST Error ${response.status}`);
   }
-  return -1;
+
+  const audioBuffer = await response.arrayBuffer();
+  return new Uint8Array(audioBuffer);
 }
 
 export default {
@@ -125,7 +72,7 @@ export default {
 
     // Health check endpoint
     if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
-      return new Response(JSON.stringify({ status: "ok", service: "vi_tts_cloudflare_worker" }), {
+      return new Response(JSON.stringify({ status: "ok", service: "vi_tts_cloudflare_worker", version: "3.2.9" }), {
         headers: { "Content-Type": "application/json" }
       });
     }
@@ -165,7 +112,7 @@ export default {
       }
 
       if (audioBuffers.length === 0) {
-        return new Response(JSON.stringify({ error: "Failed to synthesize audio" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed to synthesize audio for sentences" }), { status: 500 });
       }
 
       // Concatenate raw MP3 chunks
