@@ -20,8 +20,28 @@ function PlayerWidget:show(controller)
     local buttons = {
         {
             {
+                text = " ➖ ",
+                font_size = 24,
+                font_bold = true,
+                callback = function()
+                    controller:changeSpeed(-15)
+                    self:show(controller)
+                end,
+            },
+            {
+                text = " ➕ ",
+                font_size = 24,
+                font_bold = true,
+                callback = function()
+                    controller:changeSpeed(15)
+                    self:show(controller)
+                end,
+            },
+        },
+        {
+            {
                 text = toggle_icon,
-                font_size = 32,
+                font_size = 30,
                 font_bold = true,
                 callback = function()
                     controller:pauseSession()
@@ -31,8 +51,8 @@ function PlayerWidget:show(controller)
                 end,
             },
             {
-                text = "✖",
-                font_size = 24,
+                text = " ✖ ",
+                font_size = 22,
                 id = "close",
                 callback = function()
                     controller:stopSession()
@@ -43,7 +63,7 @@ function PlayerWidget:show(controller)
     }
 
     local widget_width = math.floor(Screen:getWidth() * 0.28)
-    local widget_height = 56
+    local widget_height = 95
 
     self.dialog = ButtonDialog:new{
         title = nil,

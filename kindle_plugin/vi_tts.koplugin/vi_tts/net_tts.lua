@@ -7,10 +7,18 @@ local has_ssl, https = pcall(require, "ssl.https")
 local NetTTS = {
     proxy_url = "https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page",
     voice = "vi-VN-HoaiMyNeural",
-    rate = "+0%",
+    rate_val = 0, -- percentage (-40% to +100%)
     pitch = "+0Hz",
     timeout = 10.0,
 }
+
+function NetTTS:getRateStr()
+    if self.rate_val >= 0 then
+        return "+" .. tostring(self.rate_val) .. "%"
+    else
+        return tostring(self.rate_val) .. "%"
+    end
+end
 
 function NetTTS:requestPageAudio(text, target_path, session_token, expected_token_cb, status_cb)
     if not text or #text == 0 or not target_path then
@@ -19,19 +27,20 @@ function NetTTS:requestPageAudio(text, target_path, session_token, expected_toke
     end
 
     local is_https = self.proxy_url:match("^https://")
-    Logger:log("NET_START", "URL: " .. tostring(self.proxy_url) .. " [HTTPS=" .. tostring(is_https ~= nil) .. ", luasec=" .. tostring(has_ssl) .. "]")
+    local rate_str = self:getRateStr()
+    Logger:log("NET_START", "URL: " .. tostring(self.proxy_url) .. " [Rate=" .. rate_str .. ", HTTPS=" .. tostring(is_https ~= nil) .. "]")
 
     if is_https and not has_ssl then
         Logger:log("NET_ERROR", "HTTPS requested but luasec (ssl.https) module missing!")
         return false, "KOReader thiếu module SSL/HTTPS (Dùng HTTP thường)"
     end
 
-    if status_cb then status_cb("🌐 Đang kết nối Cloudflare Proxy (" .. (is_https and "HTTPS" or "HTTP") .. ")...") end
+    if status_cb then status_cb("🌐 Đang kết nối Cloudflare Proxy (" .. rate_str .. ")...") end
 
     local escaped_text = text:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\n', '\\n'):gsub('\r', '')
     local json_body = string.format(
         '{"text":"%s","voice":"%s","rate":"%s","pitch":"%s"}',
-        escaped_text, self.voice, self.rate, self.pitch
+        escaped_text, self.voice, rate_str, self.pitch
     )
 
     local out_file = io.open(target_path, "w+b")
@@ -54,7 +63,7 @@ function NetTTS:requestPageAudio(text, target_path, session_token, expected_toke
         headers = {
             ["Content-Type"] = "application/json",
             ["Content-Length"] = tostring(#json_body),
-            ["User-Agent"] = "KOReader-vi_tts/3.2.8",
+            ["User-Agent"] = "KOReader-vi_tts/3.4.3",
             ["X-Request-ID"] = session_token or "req_" .. tostring(os.time()),
         },
         source = ltn12.source.string(json_body),

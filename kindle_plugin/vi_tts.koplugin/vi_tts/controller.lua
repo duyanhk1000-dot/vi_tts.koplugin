@@ -88,7 +88,7 @@ function Controller:loadAndPlayCurrentPage()
 
         if ok then
             self.state = "PLAYING"
-            self:showInfo("🔊 Đang đọc trang " .. tostring(self.current_page) .. "...")
+            self:showInfo("🔊 Đang đọc trang " .. tostring(self.current_page) .. " (" .. NetTTS:getRateStr() .. ")...")
             Logger:log("PLAYING", "Loading audio for page " .. tostring(self.current_page))
             Daemon:loadAudio(curr_file)
             self:schedulePlaybackCheck()
@@ -173,6 +173,20 @@ function Controller:pauseSession()
     end
 end
 
+function Controller:changeSpeed(delta)
+    NetTTS.rate_val = math.max(-40, math.min(100, NetTTS.rate_val + delta))
+    local rate_str = NetTTS:getRateStr()
+    self:showInfo("⚡ Tốc độ đọc: " .. rate_str)
+    Logger:log("SPEED_CHANGE", "New speed rate: " .. rate_str)
+
+    if self.state == "PLAYING" or self.state == "LOADING" then
+        Daemon:stopAudio()
+        self.state = "STARTING"
+        self.last_text = ""
+        self:loadAndPlayCurrentPage()
+    end
+end
+
 function Controller:stopSession()
     Logger:log("STOP", "Stopping session...")
     self.state = "STOPPING"
@@ -198,7 +212,7 @@ end
 function Controller:showInfo(msg)
     if self.ui then
         pcall(function()
-            local InfoMessage = require("ui/widget/infomessage")
+            local InfoMessage = require("ui/widget/info_message") or require("ui/widget/infomessage")
             UIManager:show(InfoMessage:new{
                 text = msg,
                 timeout = 1.5,
