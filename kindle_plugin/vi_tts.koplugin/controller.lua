@@ -1,3 +1,8 @@
+local plugin_dir = debug.getinfo(1, "S").source:match("@?(.*/)")
+if plugin_dir then
+    package.path = plugin_dir .. "?.lua;" .. package.path
+end
+
 local Extractor = require("extractor")
 local Daemon = require("daemon")
 local NetTTS = require("net_tts")

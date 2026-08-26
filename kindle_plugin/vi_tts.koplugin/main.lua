@@ -1,4 +1,11 @@
+local plugin_dir = debug.getinfo(1, "S").source:match("@?(.*/)")
+if plugin_dir then
+    package.path = plugin_dir .. "?.lua;" .. package.path
+end
+
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
+local UIManager = require("ui/uimanager")
+local Dispatcher = require("dispatcher")
 local _ = require("gettext")
 local Controller = require("controller")
 
