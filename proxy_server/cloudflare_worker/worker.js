@@ -1,7 +1,7 @@
 /**
  * Cloudflare Worker for Vietnamese Text-To-Speech (vi_tts) Proxy
  * - Pure JavaScript / Web API runtime (Zero dependencies, Zero cold start)
- * - Uses Google Translate TTS Vietnamese Endpoint (100% ultra-reliable, HTTP 200 guaranteed)
+ * - Uses Google Translate TTS Vietnamese Endpoint (100% ultra-reliable)
  * - Cleans Vietnamese abbreviations (TP.HCM, SĐT, Dr...)
  * - Concatenates raw MP3 byte buffers dynamically
  */
@@ -64,12 +64,13 @@ async function synthesizeSentenceTTS(sentence) {
 
   const response = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Referer": "https://translate.google.com/"
     }
   });
 
   if (!response.ok) {
-    throw new Error(`TTS Error ${response.status}`);
+    throw new Error(`Google TTS Error ${response.status} ${response.statusText}`);
   }
 
   const audioBuffer = await response.arrayBuffer();
@@ -82,7 +83,7 @@ export default {
 
     // Health check endpoint
     if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
-      return new Response(JSON.stringify({ status: "ok", service: "vi_tts_cloudflare_worker", version: "3.3.0" }), {
+      return new Response(JSON.stringify({ status: "ok", service: "vi_tts_cloudflare_worker", version: "3.3.1" }), {
         headers: { "Content-Type": "application/json" }
       });
     }
@@ -107,6 +108,8 @@ export default {
       }
 
       const audioBuffers = [];
+      let lastErr = "Unknown error";
+
       for (const sentence of sentences) {
         try {
           const audioBytes = await synthesizeSentenceTTS(sentence);
@@ -114,12 +117,12 @@ export default {
             audioBuffers.push(audioBytes);
           }
         } catch (e) {
-          // Continue with remaining sentences
+          lastErr = e.message;
         }
       }
 
       if (audioBuffers.length === 0) {
-        return new Response(JSON.stringify({ error: "Failed to synthesize audio" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed to synthesize audio: " + lastErr }), { status: 500 });
       }
 
       // Concatenate raw MP3 chunks
