@@ -36,7 +36,7 @@ function ViTTS:init()
     self:onDispatcherRegisterActions()
 
     if self.ui and self.ui.menu then
-        pcall(function() self.ui.menu:registerToMainMenu(self) end)
+        self.ui.menu:registerToMainMenu(self)
     end
 
     Controller:init(self.ui)
@@ -94,16 +94,8 @@ end
 
 function ViTTS:addToMainMenu(menu_items)
     menu_items.vi_tts = {
-        sorting_hint = "tools",
         text = _("Vietnamese TTS (Tiếng Việt)"),
-        sub_item_table = self:getMenuTable(),
-    }
-end
-
-function ViTTS:addToReaderMenu(menu_items)
-    menu_items.vi_tts = {
-        sorting_hint = "tools",
-        text = _("Vietnamese TTS (Tiếng Việt)"),
+        sorting_hint = "more_tools",
         sub_item_table = self:getMenuTable(),
     }
 end
