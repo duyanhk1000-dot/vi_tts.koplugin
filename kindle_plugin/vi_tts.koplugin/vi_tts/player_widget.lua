@@ -1,6 +1,4 @@
 local ButtonDialog = require("ui/widget/buttondialog")
-local BottomContainer = require("ui/widget/container/bottomcontainer")
-local RightContainer = require("ui/widget/container/rightcontainer")
 local UIManager = require("ui/uimanager")
 
 local PlayerWidget = {
@@ -35,17 +33,10 @@ function PlayerWidget:show(controller)
         },
     }
 
-    local dlg = ButtonDialog:new{
+    self.dialog = ButtonDialog:new{
         title = nil,
         width_factor = 0.28,
         buttons = buttons,
-    }
-
-    -- Position strictly at bottom-right corner of screen
-    self.dialog = BottomContainer:new{
-        RightContainer:new{
-            dlg
-        }
     }
 
     UIManager:show(self.dialog)

@@ -1,4 +1,4 @@
-VERSION=3.3.6
-BUILD_DATE=2026-08-26 16:21:45
-COMMIT_MSG=Rewrote pause/resume to reload current page from start, and styled ultra-mini 2-button control bar [ ▶/|| ] [ ✖ ] at bottom-right screen corner (v3.3.6)
+VERSION=3.3.7
+BUILD_DATE=2026-08-26 16:25:55
+COMMIT_MSG=Fixed BottomContainer uninitialized dimen crash by using native ButtonDialog for ultra-compact 2-button mini player widget (v3.3.7)
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page
