@@ -3,9 +3,9 @@ if plugin_dir then
     package.path = plugin_dir .. "?.lua;" .. package.path
 end
 
-local Extractor = require("extractor")
-local Daemon = require("daemon")
-local NetTTS = require("net_tts")
+local Extractor = require("vi_tts_extractor")
+local Daemon = require("vi_tts_daemon")
+local NetTTS = require("vi_tts_net")
 
 local Controller = {
     state = "IDLE",
@@ -28,7 +28,10 @@ function Controller:startSession()
 
     self.session_id = tostring(os.time())
     self.session_token = "token_" .. self.session_id .. "_" .. tostring(math.random(1000, 9999))
-    self.current_page = self.ui.document:getCurrentPage()
+    
+    if self.ui and self.ui.document then
+        self.current_page = self.ui.document:getCurrentPage()
+    end
     
     self.state = "STARTING"
     Daemon:init(self.session_id)
@@ -48,7 +51,6 @@ function Controller:loadAndPlayCurrentPage()
 
     local curr_file = Daemon:getFilePath("chunk_curr")
     
-    -- Request page audio from proxy
     local ok, res = NetTTS:requestPageAudio(text, curr_file, self.session_token, function(token)
         return token == self.session_token
     end)
@@ -67,7 +69,10 @@ function Controller:prefetchNextPage()
     if self.state ~= "PLAYING" then return end
     
     local next_page = self.current_page + 1
-    local total_pages = self.ui.document:getPageCount()
+    local total_pages = 1
+    if self.ui and self.ui.document then
+        total_pages = self.ui.document:getPageCount()
+    end
     
     if next_page > total_pages then return end
 
@@ -77,7 +82,6 @@ function Controller:prefetchNextPage()
 
     local next_file = Daemon:getFilePath("chunk_next")
     
-    -- Background prefetch
     NetTTS:requestPageAudio(text, next_file, self.session_token, function(token)
         return token == self.session_token
     end)
@@ -89,7 +93,10 @@ function Controller:onTrackFinished()
     if self.state ~= "PLAYING" and self.state ~= "PREFETCHING" then return end
 
     local next_page = self.current_page + 1
-    local total_pages = self.ui.document:getPageCount()
+    local total_pages = 1
+    if self.ui and self.ui.document then
+        total_pages = self.ui.document:getPageCount()
+    end
 
     if next_page > total_pages then
         self:showToast("Đã đọc hết cuốn sách!")
@@ -100,14 +107,12 @@ function Controller:onTrackFinished()
     self.page_transition_lock = true
     self.current_page = next_page
     
-    -- Rotate files: chunk_next becomes chunk_curr
     local curr_file = Daemon:getFilePath("chunk_curr")
     local next_file = Daemon:getFilePath("chunk_next")
     
     os.remove(curr_file)
     os.rename(next_file, curr_file)
 
-    -- Trigger page turn in KOReader
     if self.ui and self.ui.handleEvent then
         local Event = require("ui/event")
         self.ui:handleEvent(Event:new("GotoPage", next_page))
@@ -157,8 +162,10 @@ end
 
 function Controller:showToast(msg)
     if self.ui and self.ui.handleEvent then
-        local Event = require("ui/event")
-        self.ui:handleEvent(Event:new("Notification", msg))
+        pcall(function()
+            local Event = require("ui/event")
+            self.ui:handleEvent(Event:new("Notification", msg))
+        end)
     end
 end
 

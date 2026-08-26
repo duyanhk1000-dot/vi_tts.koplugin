@@ -10,7 +10,6 @@ function Extractor:getPageText(ui, page_no)
         return nil
     end
 
-    -- Reconstruct paragraphs from KOReader text boxes
     local text_parts = {}
     for _, box in ipairs(text_table) do
         if box and box.text then
@@ -22,7 +21,6 @@ function Extractor:getPageText(ui, page_no)
     end
 
     local full_text = table.concat(text_parts, " ")
-    -- Clean multiple whitespace
     full_text = full_text:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
 
     if #full_text < 5 then

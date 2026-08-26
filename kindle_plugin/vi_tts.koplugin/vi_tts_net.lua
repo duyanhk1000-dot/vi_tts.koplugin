@@ -1,13 +1,12 @@
 local http = require("socket.http")
 local ltn12 = require("ltn12")
-local socket = require("socket")
 
 local NetTTS = {
-    proxy_url = "http://192.168.1.100:8000/api/v1/tts/page",
+    proxy_url = "https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page",
     voice = "vi-VN-HoaiMyNeural",
     rate = "+0%",
     pitch = "+0Hz",
-    timeout = 3.0,
+    timeout = 5.0,
 }
 
 function NetTTS:requestPageAudio(text, target_path, session_token, expected_token_cb)
@@ -15,17 +14,15 @@ function NetTTS:requestPageAudio(text, target_path, session_token, expected_toke
         return false, "Invalid arguments"
     end
 
-    -- Construct JSON payload string manually (Lua 5.1 safe)
     local escaped_text = text:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub('\n', '\\n'):gsub('\r', '')
     local json_body = string.format(
         '{"text":"%s","voice":"%s","rate":"%s","pitch":"%s"}',
         escaped_text, self.voice, self.rate, self.pitch
     )
 
-    local response_body = {}
     http.TIMEOUT = self.timeout
 
-    local res, code, headers = http.request{
+    local res, code = http.request{
         url = self.proxy_url,
         method = "POST",
         headers = {
@@ -37,10 +34,8 @@ function NetTTS:requestPageAudio(text, target_path, session_token, expected_toke
         sink = ltn12.sink.file(io.open(target_path, "w+b"))
     }
 
-    -- Token Guard Validation
     if expected_token_cb and type(expected_token_cb) == "function" then
         if not expected_token_cb(session_token) then
-            -- Token changed while fetching, discard output
             os.remove(target_path)
             return false, "Token expired/discarded"
         end

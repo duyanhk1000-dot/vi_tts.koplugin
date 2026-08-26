@@ -9,8 +9,8 @@ local Dispatcher = require("dispatcher")
 local InputDialog = require("ui/widget/inputdialog")
 local _ = require("gettext")
 
-local Controller = require("controller")
-local NetTTS = require("net_tts")
+local Controller = require("vi_tts_controller")
+local NetTTS = require("vi_tts_net")
 
 local ViTTS = WidgetContainer:extend{
     name = "vi_tts",
@@ -35,8 +35,8 @@ end
 function ViTTS:init()
     self:onDispatcherRegisterActions()
 
-    if self.ui.menu then
-        self.ui.menu:registerToMainMenu(self)
+    if self.ui and self.ui.menu then
+        pcall(function() self.ui.menu:registerToMainMenu(self) end)
     end
 
     Controller:init(self.ui)

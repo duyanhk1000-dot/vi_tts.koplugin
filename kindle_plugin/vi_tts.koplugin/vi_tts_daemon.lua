@@ -1,5 +1,3 @@
-local lfs = require("libs/libkoreader-lfs")
-
 local Daemon = {
     process = nil,
     session_dir = nil,
@@ -11,14 +9,12 @@ function Daemon:init(session_id)
     self.session_dir = "/tmp/vi_tts/session_" .. tostring(session_id)
     os.execute("mkdir -p " .. self.session_dir)
 
-    -- Resolve binary path
     local sys_binary = "/usr/bin/mpg123"
     local f = io.open(sys_binary, "r")
     if f then
         f:close()
         self.binary_path = sys_binary
     else
-        -- Fallback to plugin armv7 binary via /tmp execution directory
         os.execute("mkdir -p /tmp/vi_tts/bin")
         os.execute("cp ./plugins/vi_tts.koplugin/bin/armv7/mpg123 /tmp/vi_tts/bin/mpg123 2>/dev/null")
         os.execute("chmod +x /tmp/vi_tts/bin/mpg123 2>/dev/null")
@@ -33,7 +29,6 @@ function Daemon:startProcess()
         self:stopProcess()
     end
 
-    -- Run mpg123 in remote quiet mode (-R -q)
     local cmd = string.format("%s -R -q 2>&1", self.binary_path)
     self.process = io.popen(cmd, "w")
     if not self.process then
@@ -68,7 +63,6 @@ function Daemon:stopProcess()
         self.process:close()
         self.process = nil
     end
-    -- Safety kill
     os.execute("killall -9 mpg123 2>/dev/null")
 end
 
