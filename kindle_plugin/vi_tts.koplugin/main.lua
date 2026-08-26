@@ -23,44 +23,44 @@ function ViTTS:init()
     Controller:init(self.ui)
 end
 
-function ViTTS:addToMainMenu(menu_items)
-    menu_items.vi_tts = {
-        text = "Vietnamese TTS (Tiếng Việt)",
-        sorting_hint = "search",
-        sub_item_table = {
-            {
-                text = "▶️ Phát / Tạm dừng (Play / Pause)",
-                callback = function()
-                    if Controller.state == "IDLE" then
-                        Controller:startSession()
-                    else
-                        Controller:pauseSession()
-                    end
-                end,
-            },
-            {
-                text = "⏹️ Dừng hẳn (Stop)",
-                callback = function()
-                    Controller:stopSession()
-                end,
-            },
-            {
-                text = "⚙️ Cấu hình Server Proxy",
-                callback = function()
-                    local InputDialog = require("ui/widget/inputdialog")
-                    local dialog
-                    dialog = InputDialog:new{
-                        title = "Nhập URL Server Proxy",
-                        input = NetTTS.proxy_url,
-                        buttons = {
+function ViTTS:getMenuTable()
+    return {
+        {
+            text = "▶️ Phát / Tạm dừng (Play / Pause)",
+            callback = function()
+                if Controller.state == "IDLE" then
+                    Controller:startSession()
+                else
+                    Controller:pauseSession()
+                end
+            end,
+        },
+        {
+            text = "⏹️ Dừng hẳn (Stop)",
+            callback = function()
+                Controller:stopSession()
+            end,
+        },
+        {
+            text = "⚙️ Cấu hình Server Proxy",
+            callback = function()
+                local InputDialog = require("ui/widget/inputdialog")
+                local dialog
+                dialog = InputDialog:new{
+                    title = "Nhập URL Server Proxy",
+                    input = NetTTS.proxy_url,
+                    buttons = {
+                        {
                             {
-                                text = "Hủy",
+                                text = "Hủy (Quay lại)",
+                                id = "close",
                                 callback = function()
                                     UIManager:close(dialog)
                                 end,
                             },
                             {
-                                text = "Lưu",
+                                text = "Lưu (OK)",
+                                is_default = true,
                                 callback = function()
                                     local val = dialog:getInputText()
                                     if val and #val > 0 then
@@ -70,11 +70,19 @@ function ViTTS:addToMainMenu(menu_items)
                                 end,
                             },
                         },
-                    }
-                    UIManager:show(dialog)
-                end,
-            },
+                    },
+                }
+                UIManager:show(dialog)
+            end,
         },
+    }
+end
+
+function ViTTS:addToMainMenu(menu_items)
+    menu_items.vi_tts = {
+        text = "Vietnamese TTS (Tiếng Việt)",
+        sorting_hint = "search",
+        sub_item_table = self:getMenuTable(),
     }
 end
 
