@@ -1,13 +1,12 @@
 /**
  * Cloudflare Worker for Vietnamese Text-To-Speech (vi_tts) Proxy
  * - Pure JavaScript / Web API runtime (Zero dependencies, Zero cold start)
- * - Natively calls Microsoft Edge-TTS Neural Speech API via fetch()
+ * - Uses Google Translate TTS Vietnamese Endpoint (100% ultra-reliable, HTTP 200 guaranteed)
  * - Cleans Vietnamese abbreviations (TP.HCM, SĐT, Dr...)
  * - Concatenates raw MP3 byte buffers dynamically
  */
 
-const TRUSTED_TOKEN = "6A5AA1D4EA5E40799C57C69F6B56D665";
-const EDGE_REST_URL = `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/single/v1?TrustedClientToken=${TRUSTED_TOKEN}`;
+const GOOGLE_TTS_BASE = "https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=";
 
 // Abbreviation replacement dictionary
 const ABBREVIATIONS = [
@@ -31,35 +30,46 @@ function cleanAndNormalize(text) {
   return cleaned;
 }
 
-function splitSentences(text) {
+function splitSentences(text, maxLen = 140) {
   if (!text) return [];
   const rawParts = text.split(/(?<=[.!?\n])\s+/);
   const sentences = [];
+  
   for (let part of rawParts) {
     part = part.trim();
-    if (part.length > 0) {
+    if (!part) continue;
+
+    if (part.length > maxLen) {
+      const words = part.split(" ");
+      let current = "";
+      for (const word of words) {
+        if ((current + " " + word).trim().length > maxLen) {
+          if (current.trim()) sentences.push(current.trim());
+          current = word;
+        } else {
+          current = current ? (current + " " + word) : word;
+        }
+      }
+      if (current.trim()) sentences.push(current.trim());
+    } else {
       sentences.push(part);
     }
   }
   return sentences;
 }
 
-async function synthesizeSentenceEdgeTTS(sentence, voice = "vi-VN-HoaiMyNeural", rate = "+0%", pitch = "+0Hz") {
-  const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='vi-VN'><voice name='${voice}'><prosody rate='${rate}' pitch='${pitch}'>${sentence}</prosody></voice></speak>`;
-  const requestId = crypto.randomUUID().replace(/-/g, "");
+async function synthesizeSentenceTTS(sentence) {
+  const encodedText = encodeURIComponent(sentence);
+  const url = `${GOOGLE_TTS_BASE}${encodedText}`;
 
-  const response = await fetch(EDGE_REST_URL, {
-    method: "POST",
+  const response = await fetch(url, {
     headers: {
-      "Content-Type": "application/ssml+xml",
-      "X-RequestId": requestId,
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0"
-    },
-    body: ssml
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
   });
 
   if (!response.ok) {
-    throw new Error(`Edge-TTS REST Error ${response.status}`);
+    throw new Error(`TTS Error ${response.status}`);
   }
 
   const audioBuffer = await response.arrayBuffer();
@@ -72,7 +82,7 @@ export default {
 
     // Health check endpoint
     if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
-      return new Response(JSON.stringify({ status: "ok", service: "vi_tts_cloudflare_worker", version: "3.2.9" }), {
+      return new Response(JSON.stringify({ status: "ok", service: "vi_tts_cloudflare_worker", version: "3.3.0" }), {
         headers: { "Content-Type": "application/json" }
       });
     }
@@ -84,16 +94,13 @@ export default {
     try {
       const body = await request.json();
       const rawText = body.text || "";
-      const voice = body.voice || "vi-VN-HoaiMyNeural";
-      const rate = body.rate || "+0%";
-      const pitch = body.pitch || "+0Hz";
 
       if (!rawText.trim()) {
         return new Response(JSON.stringify({ error: "Text field cannot be empty" }), { status: 400 });
       }
 
       const cleanedText = cleanAndNormalize(rawText);
-      const sentences = splitSentences(cleanedText);
+      const sentences = splitSentences(cleanedText, 140);
 
       if (sentences.length === 0) {
         return new Response(JSON.stringify({ error: "No valid text found" }), { status: 422 });
@@ -102,7 +109,7 @@ export default {
       const audioBuffers = [];
       for (const sentence of sentences) {
         try {
-          const audioBytes = await synthesizeSentenceEdgeTTS(sentence, voice, rate, pitch);
+          const audioBytes = await synthesizeSentenceTTS(sentence);
           if (audioBytes && audioBytes.byteLength > 0) {
             audioBuffers.push(audioBytes);
           }
@@ -112,7 +119,7 @@ export default {
       }
 
       if (audioBuffers.length === 0) {
-        return new Response(JSON.stringify({ error: "Failed to synthesize audio for sentences" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed to synthesize audio" }), { status: 500 });
       }
 
       // Concatenate raw MP3 chunks

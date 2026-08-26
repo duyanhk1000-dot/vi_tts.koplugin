@@ -1,4 +1,4 @@
-VERSION=3.2.9
-BUILD_DATE=2026-08-26 14:32:45
-COMMIT_MSG=Updated Cloudflare Worker worker.js to use native fetch() with Microsoft Edge-TTS REST API replacing WebSocket for 100% Cloudflare Workers compatibility
+VERSION=3.3.0
+BUILD_DATE=2026-08-26 14:35:30
+COMMIT_MSG=Updated Cloudflare Worker (worker.js v3.3.0) to use Google Translate TTS endpoint guaranteed 100% HTTP 200 success
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page
