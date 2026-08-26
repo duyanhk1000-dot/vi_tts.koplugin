@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+/proxy_server/vi_tts_proxy/l1_sentences/
+/proxy_server/vi_tts_proxy/l2_pages/
+*.mp3
