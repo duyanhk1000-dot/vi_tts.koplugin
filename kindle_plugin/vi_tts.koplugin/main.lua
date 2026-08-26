@@ -6,39 +6,46 @@ end
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local UIManager = require("ui/uimanager")
 local Dispatcher = require("dispatcher")
+local InputDialog = require("ui/widget/inputdialog")
 local _ = require("gettext")
+
 local Controller = require("controller")
+local NetTTS = require("net_tts")
 
 local ViTTS = WidgetContainer:extend{
     name = "vi_tts",
-    is_doc_only = true,
+    is_doc_only = false,
 }
 
 function ViTTS:onDispatcherRegisterActions()
     Dispatcher:registerAction("vi_tts_toggle", {
-        category = "read",
+        category = "none",
         event = "ViTTSToggle",
         title = _("Vietnamese TTS: Play/Pause"),
-        general_page = true,
+        general = true,
     })
     Dispatcher:registerAction("vi_tts_stop", {
-        category = "read",
+        category = "none",
         event = "ViTTSStop",
         title = _("Vietnamese TTS: Stop"),
-        general_page = true,
+        general = true,
     })
 end
 
 function ViTTS:init()
     self:onDispatcherRegisterActions()
-    self.ui.menu:registerSubmenu(_("Vietnamese TTS (Tiếng Việt)"), self:getMenuTable())
+
+    if self.ui.menu then
+        self.ui.menu:registerToMainMenu(self)
+    end
+
     Controller:init(self.ui)
 end
 
 function ViTTS:getMenuTable()
     return {
         {
-            text = _("Phát / Tạm dừng (Play / Pause)"),
+            text = _("▶️ Phát / Tạm dừng (Play / Pause)"),
             callback = function()
                 if Controller.state == "IDLE" then
                     Controller:startSession()
@@ -48,16 +55,14 @@ function ViTTS:getMenuTable()
             end,
         },
         {
-            text = _("Dừng hẳn (Stop)"),
+            text = _("⏹️ Dừng hẳn (Stop)"),
             callback = function()
                 Controller:stopSession()
             end,
         },
         {
-            text = _("Cấu hình Server Proxy"),
+            text = _("⚙️ Cấu hình Server Proxy"),
             callback = function()
-                local InputDialog = require("ui/widget/inputdialog")
-                local NetTTS = require("net_tts")
                 local dialog
                 dialog = InputDialog:new{
                     title = _("Nhập URL Server Proxy"),
@@ -87,6 +92,22 @@ function ViTTS:getMenuTable()
     }
 end
 
+function ViTTS:addToMainMenu(menu_items)
+    menu_items.vi_tts = {
+        sorting_hint = "tools",
+        text = _("Vietnamese TTS (Tiếng Việt)"),
+        sub_item_table = self:getMenuTable(),
+    }
+end
+
+function ViTTS:addToReaderMenu(menu_items)
+    menu_items.vi_tts = {
+        sorting_hint = "tools",
+        text = _("Vietnamese TTS (Tiếng Việt)"),
+        sub_item_table = self:getMenuTable(),
+    }
+end
+
 function ViTTS:onViTTSToggle()
     if Controller.state == "IDLE" then
         Controller:startSession()
@@ -102,7 +123,6 @@ function ViTTS:onViTTSStop()
 end
 
 function ViTTS:onGotoPage(page)
-    -- If user manually turned page during TTS session, trigger manual navigation cancel
     if Controller.state ~= "IDLE" and not Controller.page_transition_lock then
         Controller:onUserManualPageTurn()
     end
