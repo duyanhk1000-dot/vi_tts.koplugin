@@ -1,117 +1,89 @@
-local plugin_dir = debug.getinfo(1, "S").source:match("@?(.*/)")
-if plugin_dir then
-    package.path = plugin_dir .. "?.lua;" .. package.path
-end
-
+local Dispatcher = require("dispatcher")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local UIManager = require("ui/uimanager")
-local Dispatcher = require("dispatcher")
-local InputDialog = require("ui/widget/inputdialog")
-local _ = require("gettext")
 
-local Controller = require("vi_tts_controller")
-local NetTTS = require("vi_tts_net")
+local Controller = require("vi_tts/controller")
+local NetTTS = require("vi_tts/net_tts")
 
 local ViTTS = WidgetContainer:extend{
     name = "vi_tts",
     is_doc_only = false,
 }
 
-function ViTTS:onDispatcherRegisterActions()
-    Dispatcher:registerAction("vi_tts_toggle", {
-        category = "none",
-        event = "ViTTSToggle",
-        title = _("Vietnamese TTS: Play/Pause"),
-        general = true,
-    })
-    Dispatcher:registerAction("vi_tts_stop", {
-        category = "none",
-        event = "ViTTSStop",
-        title = _("Vietnamese TTS: Stop"),
-        general = true,
-    })
-end
-
 function ViTTS:init()
-    self:onDispatcherRegisterActions()
+    self.ui.menu:registerToMainMenu(self)
 
-    if self.ui and self.ui.menu then
-        self.ui.menu:registerToMainMenu(self)
-    end
+    Dispatcher:registerAction("start_vi_tts", {
+        category = "none",
+        event = "StartViTTS",
+        title = "Vietnamese TTS",
+        general = true,
+    })
 
     Controller:init(self.ui)
 end
 
-function ViTTS:getMenuTable()
-    return {
-        {
-            text = _("▶️ Phát / Tạm dừng (Play / Pause)"),
-            callback = function()
-                if Controller.state == "IDLE" then
-                    Controller:startSession()
-                else
-                    Controller:pauseSession()
-                end
-            end,
-        },
-        {
-            text = _("⏹️ Dừng hẳn (Stop)"),
-            callback = function()
-                Controller:stopSession()
-            end,
-        },
-        {
-            text = _("⚙️ Cấu hình Server Proxy"),
-            callback = function()
-                local dialog
-                dialog = InputDialog:new{
-                    title = _("Nhập URL Server Proxy"),
-                    input = NetTTS.proxy_url,
-                    buttons = {
-                        {
-                            text = _("Hủy"),
-                            callback = function()
-                                UIManager:close(dialog)
-                            end,
-                        },
-                        {
-                            text = _("Lưu"),
-                            callback = function()
-                                local val = dialog:getInputText()
-                                if val and #val > 0 then
-                                    NetTTS.proxy_url = val
-                                end
-                                UIManager:close(dialog)
-                            end,
-                        },
-                    },
-                }
-                UIManager:show(dialog)
-            end,
-        },
-    }
-end
-
 function ViTTS:addToMainMenu(menu_items)
     menu_items.vi_tts = {
-        text = _("Vietnamese TTS (Tiếng Việt)"),
-        sorting_hint = "more_tools",
-        sub_item_table = self:getMenuTable(),
+        text = "Vietnamese TTS (Tiếng Việt)",
+        sorting_hint = "search",
+        sub_item_table = {
+            {
+                text = "▶️ Phát / Tạm dừng (Play / Pause)",
+                callback = function()
+                    if Controller.state == "IDLE" then
+                        Controller:startSession()
+                    else
+                        Controller:pauseSession()
+                    end
+                end,
+            },
+            {
+                text = "⏹️ Dừng hẳn (Stop)",
+                callback = function()
+                    Controller:stopSession()
+                end,
+            },
+            {
+                text = "⚙️ Cấu hình Server Proxy",
+                callback = function()
+                    local InputDialog = require("ui/widget/inputdialog")
+                    local dialog
+                    dialog = InputDialog:new{
+                        title = "Nhập URL Server Proxy",
+                        input = NetTTS.proxy_url,
+                        buttons = {
+                            {
+                                text = "Hủy",
+                                callback = function()
+                                    UIManager:close(dialog)
+                                end,
+                            },
+                            {
+                                text = "Lưu",
+                                callback = function()
+                                    local val = dialog:getInputText()
+                                    if val and #val > 0 then
+                                        NetTTS.proxy_url = val
+                                    end
+                                    UIManager:close(dialog)
+                                end,
+                            },
+                        },
+                    }
+                    UIManager:show(dialog)
+                end,
+            },
+        },
     }
 end
 
-function ViTTS:onViTTSToggle()
+function ViTTS:onStartViTTS()
     if Controller.state == "IDLE" then
         Controller:startSession()
     else
         Controller:pauseSession()
     end
-    return true
-end
-
-function ViTTS:onViTTSStop()
-    Controller:stopSession()
-    return true
 end
 
 function ViTTS:onGotoPage(page)

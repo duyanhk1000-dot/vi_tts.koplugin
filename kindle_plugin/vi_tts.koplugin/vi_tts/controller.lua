@@ -1,11 +1,6 @@
-local plugin_dir = debug.getinfo(1, "S").source:match("@?(.*/)")
-if plugin_dir then
-    package.path = plugin_dir .. "?.lua;" .. package.path
-end
-
-local Extractor = require("vi_tts_extractor")
-local Daemon = require("vi_tts_daemon")
-local NetTTS = require("vi_tts_net")
+local Extractor = require("vi_tts/extractor")
+local Daemon = require("vi_tts/daemon")
+local NetTTS = require("vi_tts/net_tts")
 
 local Controller = {
     state = "IDLE",

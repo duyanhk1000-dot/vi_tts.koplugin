@@ -1,6 +1,4 @@
-local _ = require("gettext")
-
 return {
-    fullname = _("Vietnamese TTS (Tiếng Việt)"),
-    description = _("Continuous Vietnamese Text-to-Speech plugin for KOReader using Edge-TTS Proxy & mpg123 Daemon."),
+    fullname = "Vietnamese TTS (Tiếng Việt)",
+    description = "Tự động đọc sách tiếng Việt liên tục bằng Edge-TTS Proxy.",
 }
