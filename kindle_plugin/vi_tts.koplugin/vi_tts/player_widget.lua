@@ -1,4 +1,6 @@
 local ButtonDialog = require("ui/widget/buttondialog")
+local BottomContainer = require("ui/widget/container/bottomcontainer")
+local RightContainer = require("ui/widget/container/rightcontainer")
 local UIManager = require("ui/uimanager")
 
 local PlayerWidget = {
@@ -11,19 +13,19 @@ function PlayerWidget:show(controller)
     end
 
     local is_playing = (controller.state == "PLAYING")
-    local toggle_label = is_playing and "⏸️ Pause" or "▶️ Play"
+    local toggle_icon = is_playing and "⏸️" or "▶️"
 
     local buttons = {
         {
             {
-                text = toggle_label,
+                text = toggle_icon,
                 callback = function()
                     controller:pauseSession()
                     self:show(controller)
                 end,
             },
             {
-                text = "✖ Tắt",
+                text = "✖",
                 id = "close",
                 callback = function()
                     controller:stopSession()
@@ -33,12 +35,17 @@ function PlayerWidget:show(controller)
         },
     }
 
-    local page_info = controller.current_page > 0 and (" P." .. tostring(controller.current_page)) or ""
-
-    self.dialog = ButtonDialog:new{
-        title = "🎧 TTS" .. page_info,
-        width_factor = 0.40,
+    local dlg = ButtonDialog:new{
+        title = nil,
+        width_factor = 0.28,
         buttons = buttons,
+    }
+
+    -- Position strictly at bottom-right corner of screen
+    self.dialog = BottomContainer:new{
+        RightContainer:new{
+            dlg
+        }
     }
 
     UIManager:show(self.dialog)

@@ -161,15 +161,14 @@ end
 
 function Controller:pauseSession()
     Logger:log("PAUSE", "State: " .. tostring(self.state))
-    if self.state == "PLAYING" or self.state == "PREFETCHING" then
-        Daemon:pauseAudio()
+    if self.state == "PLAYING" then
+        Daemon:stopAudio()
         self.state = "PAUSED"
-        self:showInfo("⏸️ Tạm dừng đọc")
+        self:showInfo("⏸️ Đã tạm dừng")
     elseif self.state == "PAUSED" then
-        Daemon:pauseAudio()
-        self.state = "PLAYING"
-        self:showInfo("▶️ Tiếp tục đọc trang " .. tostring(self.current_page))
-        self:schedulePlaybackCheck()
+        self.state = "STARTING"
+        self:showInfo("▶️ Đang tải lại trang " .. tostring(self.current_page) .. "...")
+        self:loadAndPlayCurrentPage()
     end
 end
 
@@ -201,7 +200,7 @@ function Controller:showInfo(msg)
             local InfoMessage = require("ui/widget/infomessage")
             UIManager:show(InfoMessage:new{
                 text = msg,
-                timeout = 1.8,
+                timeout = 1.5,
             })
         end)
     end
