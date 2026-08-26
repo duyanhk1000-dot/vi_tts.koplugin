@@ -54,24 +54,24 @@ function NetTTS:requestPageAudio(text, target_path, session_token, expected_toke
         headers = {
             ["Content-Type"] = "application/json",
             ["Content-Length"] = tostring(#json_body),
-            ["User-Agent"] = "KOReader-vi_tts/3.2.7",
+            ["User-Agent"] = "KOReader-vi_tts/3.2.8",
             ["X-Request-ID"] = session_token or "req_" .. tostring(os.time()),
         },
         source = ltn12.source.string(json_body),
         sink = ltn12.sink.file(out_file)
     }
 
-    local ok, status_code, resp_headers, status_line = pcall(req_fn, req_tab)
+    -- LuaSocket table mode returns: ok_flag (1), status_code (200), headers_table, status_line
+    local pcall_ok, result_flag, http_code, headers_table, status_line = pcall(req_fn, req_tab)
 
     if socketutil then
         pcall(function() socketutil:reset_timeout() end)
     end
 
-    -- Safely attempt close in case ltn12 didn't close it
     pcall(function() out_file:close() end)
 
-    local code = tonumber(status_code) or 0
-    Logger:log("NET_RESULT", "Pcall ok: " .. tostring(ok) .. ", Code: " .. tostring(code) .. ", Line: " .. tostring(status_line))
+    local real_http_code = tonumber(http_code) or 0
+    Logger:log("NET_RESULT", "pcall_ok: " .. tostring(pcall_ok) .. ", result_flag: " .. tostring(result_flag) .. ", real_http_code: " .. tostring(real_http_code) .. ", status_line: " .. tostring(status_line))
 
     if expected_token_cb and type(expected_token_cb) == "function" then
         if not expected_token_cb(session_token) then
@@ -81,7 +81,7 @@ function NetTTS:requestPageAudio(text, target_path, session_token, expected_toke
         end
     end
 
-    if ok and (code == 200 or status_code == 200) then
+    if pcall_ok and (result_flag == 1 or result_flag == true) and real_http_code == 200 then
         local f_check = io.open(target_path, "rb")
         local f_size = 0
         if f_check then
@@ -93,8 +93,8 @@ function NetTTS:requestPageAudio(text, target_path, session_token, expected_toke
         return true, target_path
     else
         os.remove(target_path)
-        local err_detail = "HTTP Error " .. tostring(code)
-        if code == 0 then err_detail = "Không thể kết nối Server (Mạng yếu/Timeout)" end
+        local err_detail = "HTTP Error " .. tostring(real_http_code)
+        if real_http_code == 0 then err_detail = "Không thể kết nối Server (Mạng yếu/Timeout)" end
         Logger:log("NET_FAIL", err_detail)
         return false, err_detail
     end

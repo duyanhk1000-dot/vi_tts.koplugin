@@ -1,4 +1,4 @@
-VERSION=3.2.7
-BUILD_DATE=2026-08-26 14:26:00
-COMMIT_MSG=Fixed ltn12 sink file double close crash (attempt to use a closed file at net_tts.lua:70) using pcall file handle safety wrapper
+VERSION=3.2.8
+BUILD_DATE=2026-08-26 14:29:30
+COMMIT_MSG=Fixed LuaSocket https.request table mode multi-return argument mapping (result_flag vs real_http_code 200)
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page
