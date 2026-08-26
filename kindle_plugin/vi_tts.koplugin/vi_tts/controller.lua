@@ -89,9 +89,10 @@ function Controller:loadAndPlayCurrentPage()
 
         if ok then
             self.state = "PLAYING"
-            self:showInfo("🔊 Đang đọc trang " .. tostring(self.current_page) .. " (" .. NetTTS:getRateStr() .. ")...")
-            Logger:log("PLAYING", "Loading audio for page " .. tostring(self.current_page))
-            Daemon:loadAudio(curr_file)
+            local ratio = NetTTS:getSpeedRatio()
+            self:showInfo("🔊 Đang đọc trang " .. tostring(self.current_page) .. " (" .. string.format("%.2fx", ratio) .. ")...")
+            Logger:log("PLAYING", "Loading audio for page " .. tostring(self.current_page) .. " at speed ratio " .. string.format("%.2f", ratio))
+            Daemon:loadAudio(curr_file, ratio)
             self:schedulePlaybackCheck()
         else
             self.state = "IDLE"
@@ -177,9 +178,9 @@ end
 
 function Controller:changeSpeed(delta)
     NetTTS.rate_val = math.max(-40, math.min(100, NetTTS.rate_val + delta))
-    local rate_str = NetTTS:getRateStr()
-    self:showInfo("⚡ Tốc độ đọc: " .. rate_str)
-    Logger:log("SPEED_CHANGE", "New speed rate: " .. rate_str)
+    local ratio = NetTTS:getSpeedRatio()
+    self:showInfo("⚡ Tốc độ đọc: " .. string.format("%.2fx", ratio))
+    Logger:log("SPEED_CHANGE", "New speed ratio: " .. string.format("%.2f", ratio))
 
     self.page_transition_lock = false
     self.last_text = ""

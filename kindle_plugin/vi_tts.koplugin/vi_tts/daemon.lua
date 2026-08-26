@@ -1,131 +1,96 @@
 local Logger = require("vi_tts/logger")
 
 local Daemon = {
-    process = nil,
-    session_dir = nil,
-    player_type = "none",
-    binary_path = nil,
+    session_id = nil,
+    session_dir = "/tmp/vi_tts",
+    player_type = nil,
 }
 
 function Daemon:init(session_id)
-    self.session_dir = "/tmp/vi_tts/session_" .. tostring(session_id)
+    self.session_id = session_id or tostring(os.time())
+    self.session_dir = "/tmp/vi_tts/session_" .. self.session_id
+    
     os.execute("mkdir -p " .. self.session_dir)
+    Logger:log("DAEMON_INIT", "Created session dir: " .. self.session_dir)
 
-    -- Detect available audio player on Kindle Touch / Linux
-    if self:checkBinary("/usr/bin/mpg123") or self:checkBinary("mpg123") then
-        self.binary_path = "mpg123"
+    -- Auto-detect available audio player on Kindle OS
+    if os.execute("which gst-launch-0.10 >/dev/null 2>&1") == 0 then
+        self.player_type = "gst-launch-0.10"
+    elseif os.execute("which mpg123 >/dev/null 2>&1") == 0 then
         self.player_type = "mpg123"
-    elseif self:checkBinary("/tmp/vi_tts/bin/mpg123") then
-        self.binary_path = "/tmp/vi_tts/bin/mpg123"
-        self.player_type = "mpg123"
-    elseif self:checkBinary("gst-launch-0.10") then
-        self.player_type = "gstreamer"
+    elseif os.execute("which aplay >/dev/null 2>&1") == 0 then
+        self.player_type = "aplay"
     else
-        self.player_type = "cmd"
+        self.player_type = "none"
     end
 
     Logger:log("DAEMON_INIT", "Detected audio player: " .. tostring(self.player_type))
-    return self:startProcess()
+    return self.player_type ~= "none"
 end
 
-function Daemon:checkBinary(cmd)
-    local res = os.execute("which " .. cmd .. " >/dev/null 2>&1")
-    return res == 0
+function Daemon:getFilePath(filename)
+    return self.session_dir .. "/" .. filename .. ".mp3"
 end
 
-function Daemon:isPlaying()
-    local res = os.execute("pidof gst-launch-0.10 >/dev/null 2>&1 || pidof mpg123 >/dev/null 2>&1 || pidof mplayer >/dev/null 2>&1 || pidof aplay >/dev/null 2>&1")
-    return res == 0
-end
-
-function Daemon:startProcess()
-    if self.player_type == "mpg123" then
-        local cmd = string.format("%s -R -q 2>&1", self.binary_path)
-        local ok, proc = pcall(io.popen, cmd, "w")
-        if ok and proc then
-            self.process = proc
-            return true
+function Daemon:loadAudio(file_path, speed_ratio)
+    self:stopAudio()
+    speed_ratio = speed_ratio or 1.0
+    
+    if self.player_type == "gst-launch-0.10" then
+        local uri = "file://" .. file_path
+        local cmd
+        if math.abs(speed_ratio - 1.0) > 0.05 then
+            cmd = string.format(
+                "gst-launch-0.10 filesrc location='%s' ! mpegaudioparse ! mad ! scaletempo rate=%.2f ! alsasink >/dev/null 2>&1 &",
+                file_path, speed_ratio
+            )
+        else
+            cmd = string.format("gst-launch-0.10 playbin uri='%s' >/dev/null 2>&1 &", uri)
         end
-    end
-    return true
-end
-
-function Daemon:sendCommand(cmd_str)
-    if self.process and self.player_type == "mpg123" then
-        pcall(function()
-            self.process:write(cmd_str .. "\n")
-            self.process:flush()
-        end)
-    end
-end
-
-function Daemon:loadAudio(file_path)
-    if not file_path then return end
-    Logger:log("DAEMON_LOAD", "Loading audio: " .. tostring(file_path))
-
-    -- Kill any previous audio playback process to prevent overlapping sound
-    os.execute("killall -9 gst-launch-0.10 mpg123 mplayer aplay 2>/dev/null")
-
-    if self.player_type == "mpg123" and self.process then
-        self:sendCommand("L " .. file_path)
-        return
-    end
-
-    -- Cascade fallback: GStreamer 0.10 (Kindle Native MP3 Player) -> mpg123 -> mplayer -> aplay
-    local play_cmd = string.format(
-        "if which gst-launch-0.10 >/dev/null 2>&1; then " ..
-        "  gst-launch-0.10 playbin uri=\"file://%s\" >/dev/null 2>&1 & " ..
-        "elif which mpg123 >/dev/null 2>&1; then " ..
-        "  mpg123 -q \"%s\" >/dev/null 2>&1 & " ..
-        "elif which mplayer >/dev/null 2>&1; then " ..
-        "  mplayer -quiet \"%s\" >/dev/null 2>&1 & " ..
-        "else " ..
-        "  aplay -q \"%s\" >/dev/null 2>&1 & " ..
-        "fi",
-        file_path, file_path, file_path, file_path
-    )
-
-    os.execute(play_cmd)
-end
-
-function Daemon:pauseAudio()
-    Logger:log("DAEMON_PAUSE", "Pausing audio")
-    if self.player_type == "mpg123" then
-        self:sendCommand("P")
+        os.execute(cmd)
+        Logger:log("DAEMON_LOAD", "Playing via gst-launch-0.10 [Speed=" .. string.format("%.2f", speed_ratio) .. "]: " .. file_path)
+    elseif self.player_type == "mpg123" then
+        local cmd = string.format("mpg123 --speed %.2f -q '%s' >/dev/null 2>&1 &", speed_ratio, file_path)
+        os.execute(cmd)
+        Logger:log("DAEMON_LOAD", "Playing via mpg123 [Speed=" .. string.format("%.2f", speed_ratio) .. "]: " .. file_path)
     else
-        os.execute("killall -STOP gst-launch-0.10 mpg123 mplayer aplay 2>/dev/null")
+        local cmd = string.format("aplay -q '%s' >/dev/null 2>&1 &", file_path)
+        os.execute(cmd)
+        Logger:log("DAEMON_LOAD", "Playing via aplay: " .. file_path)
     end
 end
 
 function Daemon:stopAudio()
-    Logger:log("DAEMON_STOP", "Stopping audio")
-    if self.player_type == "mpg123" then
-        self:sendCommand("S")
-    else
-        os.execute("killall -KILL gst-launch-0.10 mpg123 mplayer aplay 2>/dev/null")
+    if self.player_type == "gst-launch-0.10" then
+        os.execute("killall -9 gst-launch-0.10 >/dev/null 2>&1")
+    elseif self.player_type == "mpg123" then
+        os.execute("killall -9 mpg123 >/dev/null 2>&1")
+    elseif self.player_type == "aplay" then
+        os.execute("killall -9 aplay >/dev/null 2>&1")
     end
+    Logger:log("DAEMON_STOP", "Stopping audio")
+end
+
+function Daemon:isPlaying()
+    if self.player_type == "gst-launch-0.10" then
+        return os.execute("pgrep gst-launch-0.10 >/dev/null 2>&1") == 0
+    elseif self.player_type == "mpg123" then
+        return os.execute("pgrep mpg123 >/dev/null 2>&1") == 0
+    elseif self.player_type == "aplay" then
+        return os.execute("pgrep aplay >/dev/null 2>&1") == 0
+    end
+    return false
 end
 
 function Daemon:stopProcess()
-    if self.process and self.player_type == "mpg123" then
-        pcall(function()
-            self.process:write("Q\n")
-            self.process:flush()
-            self.process:close()
-        end)
-        self.process = nil
-    end
-    os.execute("killall -9 gst-launch-0.10 mpg123 mplayer aplay 2>/dev/null")
+    self:stopAudio()
 end
 
 function Daemon:cleanSessionDir()
-    if self.session_dir then
+    if self.session_dir and #self.session_dir > 10 then
         os.execute("rm -rf " .. self.session_dir)
+        Logger:log("DAEMON_CLEAN", "Cleaned session dir: " .. self.session_dir)
     end
-end
-
-function Daemon:getFilePath(chunk_name)
-    return self.session_dir .. "/" .. chunk_name .. ".mp3"
 end
 
 return Daemon

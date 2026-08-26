@@ -20,6 +20,10 @@ function NetTTS:getRateStr()
     end
 end
 
+function NetTTS:getSpeedRatio()
+    return 1.0 + (self.rate_val / 100.0)
+end
+
 function NetTTS:requestPageAudio(text, target_path, session_token, expected_token_cb, status_cb)
     if not text or #text == 0 or not target_path then
         Logger:log("NET_ERROR", "Invalid arguments for requestPageAudio")
@@ -63,14 +67,13 @@ function NetTTS:requestPageAudio(text, target_path, session_token, expected_toke
         headers = {
             ["Content-Type"] = "application/json",
             ["Content-Length"] = tostring(#json_body),
-            ["User-Agent"] = "KOReader-vi_tts/3.4.3",
+            ["User-Agent"] = "KOReader-vi_tts/3.5.3",
             ["X-Request-ID"] = session_token or "req_" .. tostring(os.time()),
         },
         source = ltn12.source.string(json_body),
         sink = ltn12.sink.file(out_file)
     }
 
-    -- LuaSocket table mode returns: ok_flag (1), status_code (200), headers_table, status_line
     local pcall_ok, result_flag, http_code, headers_table, status_line = pcall(req_fn, req_tab)
 
     if socketutil then
