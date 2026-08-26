@@ -1,4 +1,4 @@
-VERSION=3.3.3
-BUILD_DATE=2026-08-26 15:59:50
-COMMIT_MSG=Added automatic continuous page turns with schedulePlaybackCheck liveness watcher and instant prefetch audio switching (v3.3.3)
+VERSION=3.3.4
+BUILD_DATE=2026-08-26 16:05:45
+COMMIT_MSG=Fixed duplicate page reading race condition with delay & text hash check, and added Popup Player Control Panel with Play/Pause, Volume, Skip, and Close buttons (v3.3.4)
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page

@@ -30,9 +30,16 @@ function ViTTS:getMenuTable()
             callback = function()
                 if Controller.state == "IDLE" then
                     Controller:startSession()
+                    Controller:openPanel()
                 else
                     Controller:pauseSession()
                 end
+            end,
+        },
+        {
+            text = "🎛️ Bảng điều khiển TTS (Player Panel)",
+            callback = function()
+                Controller:openPanel()
             end,
         },
         {
@@ -72,7 +79,7 @@ function ViTTS:getMenuTable()
                                 text = "Lưu (OK)",
                                 is_default = true,
                                 callback = function()
-                                    local val = dialog:getInputText()
+                                    val = dialog:getInputText()
                                     if val and #val > 0 then
                                         NetTTS.proxy_url = val
                                     end
@@ -99,6 +106,7 @@ end
 function ViTTS:onStartViTTS()
     if Controller.state == "IDLE" then
         Controller:startSession()
+        Controller:openPanel()
     else
         Controller:pauseSession()
     end
