@@ -1,3 +1,5 @@
+local UIManager = require("ui/uimanager")
+
 local Extractor = require("vi_tts/extractor")
 local Daemon = require("vi_tts/daemon")
 local NetTTS = require("vi_tts/net_tts")
@@ -36,28 +38,32 @@ end
 
 function Controller:loadAndPlayCurrentPage()
     self.state = "LOADING"
+    self:showToast("Đang tải âm thanh tiếng Việt...")
     
-    local text = Extractor:getPageText(self.ui, self.current_page)
-    if not text then
-        self:showToast("Không tìm thấy văn bản trang " .. tostring(self.current_page))
-        self:stopSession()
-        return
-    end
+    -- Schedule network task asynchronously to prevent Watchdog reboot
+    UIManager:scheduleIn(0.1, function()
+        local text = Extractor:getPageText(self.ui, self.current_page)
+        if not text then
+            self:showToast("Không tìm thấy văn bản trang " .. tostring(self.current_page))
+            self:stopSession()
+            return
+        end
 
-    local curr_file = Daemon:getFilePath("chunk_curr")
-    
-    local ok, res = NetTTS:requestPageAudio(text, curr_file, self.session_token, function(token)
-        return token == self.session_token
+        local curr_file = Daemon:getFilePath("chunk_curr")
+        
+        local ok, res = NetTTS:requestPageAudio(text, curr_file, self.session_token, function(token)
+            return token == self.session_token
+        end)
+
+        if ok then
+            self.state = "PLAYING"
+            Daemon:loadAudio(curr_file)
+            self:prefetchNextPage()
+        else
+            self.state = "IDLE"
+            self:showToast("Lỗi tải âm thanh: " .. tostring(res))
+        end
     end)
-
-    if ok then
-        self.state = "PLAYING"
-        Daemon:loadAudio(curr_file)
-        self:prefetchNextPage()
-    else
-        self:showToast("Lỗi tải âm thanh: " .. tostring(res))
-        self:safePause()
-    end
 end
 
 function Controller:prefetchNextPage()
@@ -71,17 +77,18 @@ function Controller:prefetchNextPage()
     
     if next_page > total_pages then return end
 
-    self.state = "PREFETCHING"
     local text = Extractor:getPageText(self.ui, next_page)
     if not text then return end
 
     local next_file = Daemon:getFilePath("chunk_next")
     
-    NetTTS:requestPageAudio(text, next_file, self.session_token, function(token)
-        return token == self.session_token
+    UIManager:scheduleIn(0.2, function()
+        if self.state == "PLAYING" then
+            NetTTS:requestPageAudio(text, next_file, self.session_token, function(token)
+                return token == self.session_token
+            end)
+        end
     end)
-    
-    self.state = "PLAYING"
 end
 
 function Controller:onTrackFinished()

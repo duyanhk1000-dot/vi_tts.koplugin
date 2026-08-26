@@ -1,7 +1,7 @@
 local Daemon = {
     process = nil,
     session_dir = nil,
-    last_parse_time = 0,
+    player_type = "none",
     binary_path = nil,
 }
 
@@ -9,61 +9,85 @@ function Daemon:init(session_id)
     self.session_dir = "/tmp/vi_tts/session_" .. tostring(session_id)
     os.execute("mkdir -p " .. self.session_dir)
 
-    local sys_binary = "/usr/bin/mpg123"
-    local f = io.open(sys_binary, "r")
-    if f then
-        f:close()
-        self.binary_path = sys_binary
-    else
-        os.execute("mkdir -p /tmp/vi_tts/bin")
-        os.execute("cp ./plugins/vi_tts.koplugin/bin/armv7/mpg123 /tmp/vi_tts/bin/mpg123 2>/dev/null")
-        os.execute("chmod +x /tmp/vi_tts/bin/mpg123 2>/dev/null")
+    -- Detect available audio player on Kindle Touch / Linux
+    if self:checkBinary("/usr/bin/mpg123") or self:checkBinary("mpg123") then
+        self.binary_path = "mpg123"
+        self.player_type = "mpg123"
+    elseif self:checkBinary("/tmp/vi_tts/bin/mpg123") then
         self.binary_path = "/tmp/vi_tts/bin/mpg123"
+        self.player_type = "mpg123"
+    elseif self:checkBinary("/usr/bin/aplay") or self:checkBinary("aplay") then
+        self.binary_path = "aplay"
+        self.player_type = "aplay"
+    else
+        self.player_type = "cmd"
     end
 
     return self:startProcess()
 end
 
-function Daemon:startProcess()
-    if self.process then
-        self:stopProcess()
-    end
+function Daemon:checkBinary(cmd)
+    local res = os.execute("which " .. cmd .. " >/dev/null 2>&1")
+    return res == 0
+end
 
-    local cmd = string.format("%s -R -q 2>&1", self.binary_path)
-    self.process = io.popen(cmd, "w")
-    if not self.process then
-        return false
+function Daemon:startProcess()
+    if self.player_type == "mpg123" then
+        local cmd = string.format("%s -R -q 2>&1", self.binary_path)
+        local ok, proc = pcall(io.popen, cmd, "w")
+        if ok and proc then
+            self.process = proc
+            return true
+        end
     end
     return true
 end
 
 function Daemon:sendCommand(cmd_str)
-    if self.process then
-        self.process:write(cmd_str .. "\n")
-        self.process:flush()
+    if self.process and self.player_type == "mpg123" then
+        pcall(function()
+            self.process:write(cmd_str .. "\n")
+            self.process:flush()
+        end)
     end
 end
 
 function Daemon:loadAudio(file_path)
     if not file_path then return end
-    self:sendCommand("L " .. file_path)
+    if self.player_type == "mpg123" and self.process then
+        self:sendCommand("L " .. file_path)
+    else
+        -- Standalone command fallback (aplay / background play)
+        os.execute(string.format("aplay -q %s 2>/dev/null &", file_path))
+    end
 end
 
 function Daemon:pauseAudio()
-    self:sendCommand("P")
+    if self.player_type == "mpg123" then
+        self:sendCommand("P")
+    else
+        os.execute("killall -STOP aplay 2>/dev/null")
+    end
 end
 
 function Daemon:stopAudio()
-    self:sendCommand("S")
+    if self.player_type == "mpg123" then
+        self:sendCommand("S")
+    else
+        os.execute("killall -KILL aplay 2>/dev/null")
+    end
 end
 
 function Daemon:stopProcess()
-    if self.process then
-        self:sendCommand("Q")
-        self.process:close()
+    if self.process and self.player_type == "mpg123" then
+        pcall(function()
+            self.process:write("Q\n")
+            self.process:flush()
+            self.process:close()
+        end)
         self.process = nil
     end
-    os.execute("killall -9 mpg123 2>/dev/null")
+    os.execute("killall -9 mpg123 aplay 2>/dev/null")
 end
 
 function Daemon:cleanSessionDir()

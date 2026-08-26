@@ -1,4 +1,4 @@
-VERSION=3.2.1
-BUILD_DATE=2026-08-26 13:49:30
-COMMIT_MSG=Fixed InputDialog 3-level buttons format (Cancel/Save) & dilibcomic aligned structure
+VERSION=3.2.2
+BUILD_DATE=2026-08-26 13:56:30
+COMMIT_MSG=Fixed Kindle Watchdog reboot crash using UIManager:scheduleIn async scheduling & pcall SIGPIPE guards in daemon.lua
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page
