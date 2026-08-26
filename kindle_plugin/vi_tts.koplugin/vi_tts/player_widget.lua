@@ -39,6 +39,11 @@ function PlayerWidget:show(controller)
         buttons = buttons,
     }
 
+    -- Shift dialog position to bottom of the screen
+    pcall(function()
+        self.dialog:onMovePosition(false)
+    end)
+
     UIManager:show(self.dialog)
 end
 

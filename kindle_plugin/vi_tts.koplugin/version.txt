@@ -1,4 +1,4 @@
-VERSION=3.3.7
-BUILD_DATE=2026-08-26 16:25:55
-COMMIT_MSG=Fixed BottomContainer uninitialized dimen crash by using native ButtonDialog for ultra-compact 2-button mini player widget (v3.3.7)
+VERSION=3.3.8
+BUILD_DATE=2026-08-26 16:31:15
+COMMIT_MSG=Rewrote pause/resume to reload page from start, and styled crash-proof ultra-mini 2-button control widget [ ▶/|| ] [ ✖ ] at bottom of screen (v3.3.8)
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page
