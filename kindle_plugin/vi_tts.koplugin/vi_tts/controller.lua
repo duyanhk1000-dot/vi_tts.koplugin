@@ -32,6 +32,7 @@ function Controller:startSession()
     self.session_id = tostring(os.time())
     self.session_token = "token_" .. self.session_id .. "_" .. tostring(math.random(1000, 9999))
     self.last_text = ""
+    self.page_transition_lock = false
     
     if self.ui and self.ui.document then
         self.current_page = self.ui.document:getCurrentPage()
@@ -62,9 +63,9 @@ function Controller:loadAndPlayCurrentPage()
             return
         end
 
-        -- Check duplicate text guard to ensure we never read the previous page again
-        if text == self.last_text and #text > 20 then
-            Logger:log("LOAD_PAGE_DUP", "Extracted duplicate text of previous page. Retrying extraction...")
+        -- Duplicate text guard ONLY applies during active page transitions
+        if self.page_transition_lock and text == self.last_text and #text > 20 then
+            Logger:log("LOAD_PAGE_DUP", "Extracted duplicate text of previous page during transition. Retrying...")
             UIManager:scheduleIn(0.4, function()
                 self:loadAndPlayCurrentPage()
             end)
@@ -167,7 +168,8 @@ function Controller:pauseSession()
         self:showInfo("⏸️ Đã tạm dừng")
     elseif self.state == "PAUSED" then
         self.state = "STARTING"
-        self.last_text = "" -- Reset last_text so resuming current page is not blocked by duplicate guard
+        self.page_transition_lock = false
+        self.last_text = ""
         self:showInfo("▶️ Tiếp tục đọc trang " .. tostring(self.current_page) .. "...")
         self:loadAndPlayCurrentPage()
     end
@@ -179,10 +181,12 @@ function Controller:changeSpeed(delta)
     self:showInfo("⚡ Tốc độ đọc: " .. rate_str)
     Logger:log("SPEED_CHANGE", "New speed rate: " .. rate_str)
 
-    if self.state == "PLAYING" or self.state == "LOADING" then
+    self.page_transition_lock = false
+    self.last_text = ""
+
+    if self.state == "PLAYING" or self.state == "LOADING" or self.state == "PAUSED" then
         Daemon:stopAudio()
         self.state = "STARTING"
-        self.last_text = ""
         self:loadAndPlayCurrentPage()
     end
 end
