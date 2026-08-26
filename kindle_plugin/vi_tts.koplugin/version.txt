@@ -1,4 +1,4 @@
-VERSION=3.3.1
-BUILD_DATE=2026-08-26 14:36:20
-COMMIT_MSG=Updated Cloudflare Worker (worker.js v3.3.1) with Google Referer header and error message details
+VERSION=3.3.2
+BUILD_DATE=2026-08-26 14:41:45
+COMMIT_MSG=Fixed static/buzzing audio output by integrating Kindle native GStreamer 0.10 (gst-launch-0.10 playbin) MP3 decoder
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page
