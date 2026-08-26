@@ -1,5 +1,9 @@
 local ButtonDialog = require("ui/widget/buttondialog")
+local Device = require("device")
+local Geom = require("ui/geometry")
 local UIManager = require("ui/uimanager")
+
+local Screen = Device.screen
 
 local PlayerWidget = {
     dialog = nil,
@@ -33,21 +37,24 @@ function PlayerWidget:show(controller)
         },
     }
 
+    local widget_width = math.floor(Screen:getWidth() * 0.25)
+    local widget_height = 50
+
     self.dialog = ButtonDialog:new{
         title = nil,
-        width_factor = 0.28,
+        width_factor = 0.25,
         buttons = buttons,
+        anchor = function()
+            return Geom:new{
+                x = Screen:getWidth() - widget_width - 10,
+                y = Screen:getHeight() - widget_height - 10,
+                w = widget_width,
+                h = widget_height,
+            }
+        end,
     }
 
-    -- Show widget first to calculate dimensions
     UIManager:show(self.dialog)
-
-    -- Move widget to bottom of screen AFTER showing
-    pcall(function()
-        if self.dialog and self.dialog.onMovePosition then
-            self.dialog:onMovePosition(false)
-        end
-    end)
 end
 
 function PlayerWidget:close()

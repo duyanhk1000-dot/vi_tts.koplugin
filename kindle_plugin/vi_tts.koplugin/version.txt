@@ -1,4 +1,4 @@
-VERSION=3.3.9
-BUILD_DATE=2026-08-26 16:34:45
-COMMIT_MSG=Called onMovePosition(false) AFTER UIManager:show to reliably anchor ultra-mini 2-button control widget at the bottom of the screen (v3.3.9)
+VERSION=3.4.0
+BUILD_DATE=2026-08-26 17:00:45
+COMMIT_MSG=Anchored mini 2-button player widget strictly at bottom-right corner using KOReader anchor Geom function property (v3.4.0)
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page
