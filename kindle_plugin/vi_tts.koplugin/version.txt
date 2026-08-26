@@ -1,4 +1,4 @@
-VERSION=3.6.0
-BUILD_DATE=2026-08-26 18:08:55
-COMMIT_MSG=Implemented native GStreamer scaletempo real-time audio playback speed scaling on Kindle OS (v3.6.0)
+VERSION=3.6.1
+BUILD_DATE=2026-08-26 18:14:05
+COMMIT_MSG=Restored stable gst-launch-0.10 playbin player on Kindle to eliminate GStreamer pipeline crashes and rapid page turning, and updated Cloudflare Worker with native WebSocket upgrade client for Edge-TTS speed synthesis (v3.6.1)
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page

@@ -32,27 +32,18 @@ function Daemon:getFilePath(filename)
     return self.session_dir .. "/" .. filename .. ".mp3"
 end
 
-function Daemon:loadAudio(file_path, speed_ratio)
+function Daemon:loadAudio(file_path)
     self:stopAudio()
-    speed_ratio = speed_ratio or 1.0
     
     if self.player_type == "gst-launch-0.10" then
         local uri = "file://" .. file_path
-        local cmd
-        if math.abs(speed_ratio - 1.0) > 0.05 then
-            cmd = string.format(
-                "gst-launch-0.10 filesrc location='%s' ! mpegaudioparse ! mad ! scaletempo rate=%.2f ! alsasink >/dev/null 2>&1 &",
-                file_path, speed_ratio
-            )
-        else
-            cmd = string.format("gst-launch-0.10 playbin uri='%s' >/dev/null 2>&1 &", uri)
-        end
+        local cmd = string.format("gst-launch-0.10 playbin uri='%s' >/dev/null 2>&1 &", uri)
         os.execute(cmd)
-        Logger:log("DAEMON_LOAD", "Playing via gst-launch-0.10 [Speed=" .. string.format("%.2f", speed_ratio) .. "]: " .. file_path)
+        Logger:log("DAEMON_LOAD", "Playing via gst-launch-0.10 playbin: " .. file_path)
     elseif self.player_type == "mpg123" then
-        local cmd = string.format("mpg123 --speed %.2f -q '%s' >/dev/null 2>&1 &", speed_ratio, file_path)
+        local cmd = string.format("mpg123 -q '%s' >/dev/null 2>&1 &", file_path)
         os.execute(cmd)
-        Logger:log("DAEMON_LOAD", "Playing via mpg123 [Speed=" .. string.format("%.2f", speed_ratio) .. "]: " .. file_path)
+        Logger:log("DAEMON_LOAD", "Playing via mpg123: " .. file_path)
     else
         local cmd = string.format("aplay -q '%s' >/dev/null 2>&1 &", file_path)
         os.execute(cmd)

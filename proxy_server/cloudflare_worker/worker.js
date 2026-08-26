@@ -1,16 +1,15 @@
 /**
- * Cloudflare Worker for Vietnamese Text-To-Speech (vi_tts) Proxy v3.5.1
- * - Edge-TTS WebSocket Engine with dynamic SSML Prosody Rate (+30%, -20%, etc.)
- * - Native Google TTS Fallback
- * - Cleans Vietnamese abbreviations (TP.HCM, SĐT, Dr...)
- * - Concatenates raw MP3 byte buffers dynamically
+ * Cloudflare Worker for Vietnamese Text-To-Speech (vi_tts) Proxy v3.6.1
+ * - Edge-TTS WebSocket Engine using Cloudflare Worker native fetch Upgrade WebSocket client
+ * - Dynamic SSML Prosody Rate (+15%, +30%, -15%, etc.)
+ * - Google TTS Fallback
+ * - Cleans Vietnamese abbreviations
  */
 
 const TRUSTED_TOKEN = "6A5AA1D4EA5E40799C57C69F6B56D665";
-const EDGE_WS_URL = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_TOKEN}`;
+const EDGE_URL = `https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_TOKEN}`;
 const GOOGLE_TTS_BASE = "https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=";
 
-// Abbreviation replacement dictionary
 const ABBREVIATIONS = [
   { pattern: /\bTP\.HCM\b/gi, replacement: "Thành phố Hồ Chí Minh" },
   { pattern: /\bTp\.HCM\b/gi, replacement: "Thành phố Hồ Chí Minh" },
@@ -61,16 +60,29 @@ function splitSentences(text, maxLen = 140) {
 }
 
 async function synthesizeSentenceEdgeTTS(sentence, voice = "vi-VN-HoaiMyNeural", rate = "+0%") {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
-      const ws = new WebSocket(EDGE_WS_URL);
+      const resp = await fetch(EDGE_URL, {
+        headers: {
+          "Upgrade": "websocket",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+          "Origin": "chrome-extension://jdiccldimpdaibhpobmljdgahglbccip"
+        }
+      });
+
+      const ws = resp.webSocket;
+      if (!ws) {
+        return reject(new Error("Cloudflare WebSocket upgrade failed"));
+      }
+
+      ws.accept();
       const audioChunks = [];
       const reqId = crypto.randomUUID().replace(/-/g, "");
 
       const timeoutTimer = setTimeout(() => {
         try { ws.close(); } catch(e) {}
         reject(new Error("Edge-TTS WebSocket timeout"));
-      }, 6000);
+      }, 7000);
 
       ws.addEventListener("open", () => {
         const configMsg = `Path: speech.config\r\nX-RequestId: ${reqId}\r\nContent-Type: application/json; charset=utf-8\r\n\r\n{"context":{"synthesis":{"audio":{"metadataversion":"2020.05.30","format":"audio-24khz-48kbitrate-mono-mp3"}}}}`;
@@ -140,7 +152,7 @@ export default {
 
     // Health check endpoint
     if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
-      return new Response(JSON.stringify({ status: "ok", service: "vi_tts_cloudflare_worker", version: "3.5.1" }), {
+      return new Response(JSON.stringify({ status: "ok", service: "vi_tts_cloudflare_worker", version: "3.6.1" }), {
         headers: { "Content-Type": "application/json" }
       });
     }
@@ -172,14 +184,12 @@ export default {
       for (const sentence of sentences) {
         let audioBytes = null;
 
-        -- Try Edge-TTS WebSocket first (supports speed/rate control)
         try {
           audioBytes = await synthesizeSentenceEdgeTTS(sentence, voice, rate);
         } catch (e) {
           lastErr = "Edge-TTS error: " + e.message;
         }
 
-        -- Fallback to Google TTS if Edge-TTS failed
         if (!audioBytes || audioBytes.byteLength === 0) {
           try {
             audioBytes = await synthesizeSentenceGoogleTTS(sentence);
@@ -197,7 +207,6 @@ export default {
         return new Response(JSON.stringify({ error: "Failed to synthesize audio: " + lastErr }), { status: 500 });
       }
 
-      // Concatenate raw MP3 chunks
       const totalLen = audioBuffers.reduce((acc, b) => acc + b.byteLength, 0);
       const finalMp3 = new Uint8Array(totalLen);
       let offset = 0;
