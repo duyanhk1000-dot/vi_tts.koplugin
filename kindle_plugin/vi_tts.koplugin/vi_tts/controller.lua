@@ -4,7 +4,7 @@ local Logger = require("vi_tts/logger")
 local Extractor = require("vi_tts/extractor")
 local Daemon = require("vi_tts/daemon")
 local NetTTS = require("vi_tts/net_tts")
-local PlayerPanel = require("vi_tts/player_panel")
+local PlayerWidget = require("vi_tts/player_widget")
 
 local Controller = {
     state = "IDLE",
@@ -50,21 +50,21 @@ end
 function Controller:loadAndPlayCurrentPage()
     self.state = "LOADING"
     Logger:log("LOAD_PAGE", "Loading page " .. tostring(self.current_page))
-    self:showInfo("🔍 Trích xuất chữ trang " .. tostring(self.current_page) .. "...")
     
-    UIManager:scheduleIn(0.2, function()
+    -- Schedule text extraction after KOReader page render completes
+    UIManager:scheduleIn(0.35, function()
         local text = Extractor:getPageText(self.ui, self.current_page)
         
         if not text then
             Logger:log("LOAD_PAGE_ERROR", "No text found for page " .. tostring(self.current_page))
-            self:showInfo("❌ Trang " .. tostring(self.current_page) .. " không có chữ để đọc!")
+            self:showInfo("❌ Trang " .. tostring(self.current_page) .. " không có chữ!")
             self:stopSession()
             return
         end
 
-        -- Check duplicate text to prevent reading previous page again
+        -- Check duplicate text guard to ensure we never read the previous page again
         if text == self.last_text and #text > 20 then
-            Logger:log("LOAD_PAGE_DUP", "Extracted duplicate text of previous page. Retrying after delay...")
+            Logger:log("LOAD_PAGE_DUP", "Extracted duplicate text of previous page. Retrying extraction...")
             UIManager:scheduleIn(0.4, function()
                 self:loadAndPlayCurrentPage()
             end)
@@ -72,8 +72,7 @@ function Controller:loadAndPlayCurrentPage()
         end
 
         self.last_text = text
-        Logger:log("LOAD_PAGE_TEXT", "Text extracted, length: " .. tostring(#text))
-        self:showInfo("🌐 Gửi " .. tostring(#text) .. " ký tự lên Cloudflare Edge-TTS...")
+        Logger:log("LOAD_PAGE_TEXT", "Page " .. tostring(self.current_page) .. " text extracted, length: " .. tostring(#text))
 
         local curr_file = Daemon:getFilePath("chunk_curr")
         
@@ -90,9 +89,8 @@ function Controller:loadAndPlayCurrentPage()
         if ok then
             self.state = "PLAYING"
             self:showInfo("🔊 Đang đọc trang " .. tostring(self.current_page) .. "...")
-            Logger:log("PLAYING", "Loading audio into daemon...")
+            Logger:log("PLAYING", "Loading audio for page " .. tostring(self.current_page))
             Daemon:loadAudio(curr_file)
-            self:prefetchNextPage()
             self:schedulePlaybackCheck()
         else
             self.state = "IDLE"
@@ -109,36 +107,11 @@ function Controller:schedulePlaybackCheck()
         if self.state ~= "PLAYING" then return end
         
         if Daemon:isPlaying() then
+            -- Still playing current page audio
             self:schedulePlaybackCheck()
         else
-            Logger:log("PLAYBACK_CHECK", "Audio finished for page " .. tostring(self.current_page) .. "! Auto turning page...")
+            Logger:log("PLAYBACK_CHECK", "Page " .. tostring(self.current_page) .. " finished. Turning page...")
             self:onTrackFinished()
-        end
-    end)
-end
-
-function Controller:prefetchNextPage()
-    if self.state ~= "PLAYING" then return end
-    
-    local next_page = self.current_page + 1
-    local total_pages = 1
-    if self.ui and self.ui.document then
-        total_pages = self.ui.document:getPageCount()
-    end
-    
-    if next_page > total_pages then return end
-
-    local text = Extractor:getPageText(self.ui, next_page)
-    if not text then return end
-
-    local next_file = Daemon:getFilePath("chunk_next")
-    
-    UIManager:scheduleIn(0.2, function()
-        if self.state == "PLAYING" then
-            Logger:log("PREFETCH_NET", "Requesting prefetch audio for page " .. tostring(next_page))
-            NetTTS:requestPageAudio(text, next_file, self.session_token, function(token)
-                return token == self.session_token
-            end)
         end
     end)
 end
@@ -162,21 +135,8 @@ function Controller:onTrackFinished()
 
     self.page_transition_lock = true
     self.current_page = next_page
-    
-    local curr_file = Daemon:getFilePath("chunk_curr")
-    local next_file = Daemon:getFilePath("chunk_next")
-    
-    local has_prefetch = false
-    local f = io.open(next_file, "rb")
-    if f then
-        local size = f:seek("end")
-        f:close()
-        if size > 1000 then
-            has_prefetch = true
-        end
-    end
 
-    -- Turn page automatically on KOReader
+    -- Turn page on KOReader screen
     if self.ui and self.ui.handleEvent then
         pcall(function()
             local Event = require("ui/event")
@@ -184,25 +144,11 @@ function Controller:onTrackFinished()
         end)
     end
 
-    if has_prefetch then
-        Logger:log("TRACK_FINISHED", "Using prefetched chunk_next for page " .. tostring(next_page))
-        os.remove(curr_file)
-        os.rename(next_file, curr_file)
-        
-        self.state = "PLAYING"
-        self:showInfo("🔊 Tự động sang trang " .. tostring(self.current_page) .. "...")
-        Daemon:loadAudio(curr_file)
+    -- Allow KOReader 0.35s to complete rendering next_page before extracting text
+    UIManager:scheduleIn(0.35, function()
         self.page_transition_lock = false
-        
-        self:prefetchNextPage()
-        self:schedulePlaybackCheck()
-    else
-        Logger:log("TRACK_FINISHED", "Prefetch not ready, delaying 0.4s for KOReader page render...")
-        UIManager:scheduleIn(0.4, function()
-            self.page_transition_lock = false
-            self:loadAndPlayCurrentPage()
-        end)
-    end
+        self:loadAndPlayCurrentPage()
+    end)
 end
 
 function Controller:onUserManualPageTurn()
@@ -233,7 +179,7 @@ function Controller:stopSession()
     Daemon:stopAudio()
     Daemon:stopProcess()
     Daemon:cleanSessionDir()
-    PlayerPanel:close()
+    PlayerWidget:close()
     self.session_token = nil
     self.state = "IDLE"
     self:showInfo("⏹️ Đã dừng hẳn đọc TTS")
@@ -245,8 +191,8 @@ function Controller:setVolume(volume_percent)
     self:showInfo("🔊 Âm lượng: " .. tostring(volume_percent) .. "%")
 end
 
-function Controller:openPanel()
-    PlayerPanel:show(self)
+function Controller:openWidget()
+    PlayerWidget:show(self)
 end
 
 function Controller:showInfo(msg)
@@ -255,7 +201,7 @@ function Controller:showInfo(msg)
             local InfoMessage = require("ui/widget/infomessage")
             UIManager:show(InfoMessage:new{
                 text = msg,
-                timeout = 2.0,
+                timeout = 1.8,
             })
         end)
     end

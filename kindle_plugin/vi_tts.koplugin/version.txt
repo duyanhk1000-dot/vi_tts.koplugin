@@ -1,4 +1,4 @@
-VERSION=3.3.4
-BUILD_DATE=2026-08-26 16:05:45
-COMMIT_MSG=Fixed duplicate page reading race condition with delay & text hash check, and added Popup Player Control Panel with Play/Pause, Volume, Skip, and Close buttons (v3.3.4)
+VERSION=3.3.5
+BUILD_DATE=2026-08-26 16:14:20
+COMMIT_MSG=Fixed page 1 double reading bug by replacing speculative prefetch with strict post-render extraction, and added ultra-compact 2-button Mini Player Widget (v3.3.5)
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page
