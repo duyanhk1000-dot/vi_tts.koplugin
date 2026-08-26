@@ -1,4 +1,4 @@
-VERSION=3.4.0
-BUILD_DATE=2026-08-26 17:00:45
-COMMIT_MSG=Anchored mini 2-button player widget strictly at bottom-right corner using KOReader anchor Geom function property (v3.4.0)
+VERSION=3.4.1
+BUILD_DATE=2026-08-26 17:40:30
+COMMIT_MSG=Fixed Play/Pause resume bug by clearing last_text on unpause so duplicate guard does not block current page reload (v3.4.1)
 DEFAULT_PROXY_URL=https://vi-tts-koplugin.duyanhk1000.workers.dev/api/v1/tts/page

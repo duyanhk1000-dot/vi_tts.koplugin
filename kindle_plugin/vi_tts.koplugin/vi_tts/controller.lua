@@ -161,13 +161,14 @@ end
 
 function Controller:pauseSession()
     Logger:log("PAUSE", "State: " .. tostring(self.state))
-    if self.state == "PLAYING" then
+    if self.state == "PLAYING" or self.state == "LOADING" or self.state == "STARTING" then
         Daemon:stopAudio()
         self.state = "PAUSED"
         self:showInfo("⏸️ Đã tạm dừng")
     elseif self.state == "PAUSED" then
         self.state = "STARTING"
-        self:showInfo("▶️ Đang tải lại trang " .. tostring(self.current_page) .. "...")
+        self.last_text = "" -- Reset last_text so resuming current page is not blocked by duplicate guard
+        self:showInfo("▶️ Tiếp tục đọc trang " .. tostring(self.current_page) .. "...")
         self:loadAndPlayCurrentPage()
     end
 end

@@ -14,7 +14,7 @@ function PlayerWidget:show(controller)
         self:close()
     end
 
-    local is_playing = (controller.state == "PLAYING")
+    local is_playing = (controller.state == "PLAYING" or controller.state == "LOADING" or controller.state == "STARTING")
     local toggle_icon = is_playing and "⏸️" or "▶️"
 
     local buttons = {
@@ -23,7 +23,9 @@ function PlayerWidget:show(controller)
                 text = toggle_icon,
                 callback = function()
                     controller:pauseSession()
-                    self:show(controller)
+                    UIManager:scheduleIn(0.15, function()
+                        self:show(controller)
+                    end)
                 end,
             },
             {
